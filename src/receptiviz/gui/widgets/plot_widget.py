@@ -91,18 +91,21 @@ class PlotWidget(QWidget):
     
     def _create_3D_surface_plot(self, data_2d, dim_info, value_info, 
                                 dim0_name=None, dim0_unit=None, dim1_name=None, dim1_unit=None):
-        """Create a 3D wireframe plot for 2D data"""
+        """Create a 3D wireframe plot for 2D data
+        
+        In the mesh, dim0 corresponds to the Y-axis and dim1 to the X-axis
+        """
         # Use provided dimension names/units or extract from dim_info
-        if dim0_name is None:
+        if dim0_name is None:  # Y-axis
             dim0_name = dim_info['dims'][0]
         if dim0_unit is None:
             dim0_unit = dim_info['units'][0]
-        if dim1_name is None:
+        if dim1_name is None:  # X-axis
             dim1_name = dim_info['dims'][1]
         if dim1_unit is None:
             dim1_unit = dim_info['units'][1]
         
-        # Create axis legend label
+        # Create axis legend with consistent color coding
         legend = QLabel(
             f'<span style="color: #4444FF">X: {dim1_name} ({dim1_unit})</span> &nbsp;&nbsp; '
             f'<span style="color: #FFFF44">Y: {dim0_name} ({dim0_unit})</span> &nbsp;&nbsp; '
@@ -148,29 +151,52 @@ class PlotWidget(QWidget):
         self.layout.addWidget(plot_widget, 1)
         
     def _create_3D_surface_from_highD(self, stimulus, dim_info, value_info):
-        """Create a 3D surface plot from higher dimensional data, using time as X-axis"""
-        # Show dimension selector dialog (preselect time dimension for X-axis)
+        """Create a 3D surface plot from higher dimensional data, using time as Y-axis"""
+        # Show dimension selector dialog (preselect time dimension for Y-axis)
         dialog = DimensionSelectorDialog(self.processor, self, preselect_dim0=0)
         if dialog.exec():
             # Get selected dimensions and slices
             selection = dialog.get_selection()
-            dim1, dim2 = selection['dims']
+            x_dim, y_dim = selection['dims']  # Unpack x and y dimensions
             slices = selection['slices']
             
-            # Extract the two selected dimensions
-            selected_dim_names = [dim_info['dims'][dim1], dim_info['dims'][dim2]]
-            selected_dim_units = [dim_info['units'][dim1], dim_info['units'][dim2]]
+            # Get dimension names and units
+            x_name = dim_info['dims'][x_dim]
+            x_unit = dim_info['units'][x_dim]
+            y_name = dim_info['dims'][y_dim]
+            y_unit = dim_info['units'][y_dim]
             
             # Create slice tuple for numpy indexing
             slice_tuple = [slice(None)] * len(stimulus.shape)
             for dim, value in slices.items():
                 slice_tuple[dim] = value
             
-            # Extract 2D slice
-            data_slice = stimulus[tuple(slice_tuple)]
+            # Extract 2D slice - keep x_dim and y_dim
+            all_dims = list(range(len(stimulus.shape)))
+            vis_dims = [y_dim, x_dim]  # Note: We want y_dim first, then x_dim
             
-            # Create slice title for display
-            slice_info = [f"{dim_info['dims'][d]}={v}" for d, v in slices.items()]
+            # Make a copy of the array (so we don't modify the original)
+            data_slice = stimulus.copy()
+            
+            # Process the slices
+            for dim in slices:
+                if dim not in vis_dims:
+                    # Apply the slice for dimensions we're not visualizing
+                    idx = [slice(None)] * data_slice.ndim
+                    idx[dim] = slices[dim]
+                    data_slice = data_slice[tuple(idx)]
+            
+            # Move visualization dimensions to the front
+            data_slice = np.moveaxis(data_slice, source=vis_dims, destination=[0, 1])
+            
+            # Create slice title for display with units
+            slice_info = []
+            for d, v in slices.items():
+                dim_name = dim_info['dims'][d]
+                dim_unit = dim_info['units'][d] if d < len(dim_info['units']) else ""
+                unit_str = f" {dim_unit}" if dim_unit else ""
+                slice_info.append(f"{dim_name} = {v} ({unit_str[1:]})")
+            
             slice_title = f"Slice at {', '.join(slice_info)}"
             
             # Create 3D surface plot from the 2D slice
@@ -178,10 +204,10 @@ class PlotWidget(QWidget):
                 data_slice, 
                 dim_info,
                 value_info,
-                dim0_name=selected_dim_names[0],
-                dim0_unit=selected_dim_units[0],
-                dim1_name=selected_dim_names[1],
-                dim1_unit=selected_dim_units[1]
+                dim0_name=y_name,  # First dimension (Y-axis)
+                dim0_unit=y_unit,
+                dim1_name=x_name,  # Second dimension (X-axis)
+                dim1_unit=x_unit
             )
             
             # Add a title widget to show which slice we're viewing
