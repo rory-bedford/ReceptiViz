@@ -68,34 +68,37 @@ class ReceptiveFieldProcessor:
                 errors.append(f"Array contains NaN values")
                 return False, errors, None
                 
-            # Validate shape based on file type
+            # Get the time dimension of the new array
+            time_points = data.shape[0]
+            
+            # Check minimum time points
+            if time_points < MIN_TIME_POINTS:
+                errors.append(f"Array too small (length {time_points}), must have at least {MIN_TIME_POINTS} time points")
+                return False, errors, None
+            
+            # Check length compatibility regardless of file type
+            if file_type == "activity" and self.stimulus is not None:
+                if time_points != self.stimulus.shape[0]:
+                    errors.append(f"Activity length ({time_points}) must match stimulus length ({self.stimulus.shape[0]})")
+                    return False, errors, None
+            elif file_type == "stimulus" and self.activity is not None:
+                if time_points != self.activity.shape[0]:
+                    errors.append(f"Stimulus time dimension ({time_points}) must match activity length ({self.activity.shape[0]})")
+                    return False, errors, None
+            
             if file_type == "activity":
                 # Activity must be 1D
                 if len(data.shape) != 1:
                     errors.append(f"Activity array must be 1D, got {len(data.shape)}D with shape {data.shape}")
                     return False, errors, None
-                    
-                if data.shape[0] < MIN_TIME_POINTS:
-                    errors.append(f"Activity array too small (length {data.shape[0]}), must have at least {MIN_TIME_POINTS} time points")
-                    return False, errors, None
-                    
+                
                 # Set up default dimension names for activity
                 self.activity_dims = {
                     "dims": ["time"],
                     "units": ["frames"]
                 }
-                
-                # Check compatibility with existing stimulus
-                if self.stimulus is not None and data.shape[0] != self.stimulus.shape[0]:
-                    errors.append(f"Activity length ({data.shape[0]}) must match stimulus time dimension ({self.stimulus.shape[0]})")
-                    return False, errors, None
                     
             elif file_type == "stimulus":
-                # First dimension must have enough time points
-                if data.shape[0] < MIN_TIME_POINTS:
-                    errors.append(f"Stimulus time dimension too small (only {data.shape[0]} time points), must have at least {MIN_TIME_POINTS} time points")
-                    return False, errors, None
-                
                 # Store the number of dimensions in the stimulus array
                 self.stimulus_ndim = len(data.shape)
                 
@@ -120,11 +123,6 @@ class ReceptiveFieldProcessor:
                     "units": dim_units,
                     "shape": data.shape
                 }
-                
-                # Check compatibility with existing activity
-                if self.activity is not None and data.shape[0] != self.activity.shape[0]:
-                    errors.append(f"Stimulus time dimension ({data.shape[0]}) must match activity length ({self.activity.shape[0]})")
-                    return False, errors, None
             
             return True, [], data
             
