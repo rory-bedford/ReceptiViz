@@ -92,7 +92,7 @@ class ReceptiveFieldProcessor:
                     errors.append(f"Activity array must be 1D, got {len(data.shape)}D with shape {data.shape}")
                     return False, errors, None
                 
-                # Set up default dimension names for activity
+                # Set up default dimension names for activity (keep this simple)
                 self.activity_dims = {
                     "dims": ["time"],
                     "units": ["frames"]
@@ -102,21 +102,13 @@ class ReceptiveFieldProcessor:
                 # Store the number of dimensions in the stimulus array
                 self.stimulus_ndim = len(data.shape)
                 
-                # Set up default dimension names for stimulus
-                dim_names = ["time"] 
-                dim_units = ["frames"]
+                # Set up generic dimension names for stimulus
+                dim_names = [f"dim_{i}" for i in range(self.stimulus_ndim)]
+                dim_units = ["units" for _ in range(self.stimulus_ndim)]
                 
-                # Add default names for additional dimensions
-                for i in range(1, self.stimulus_ndim):
-                    if i == 1:
-                        dim_names.append("height")
-                        dim_units.append("pixels")
-                    elif i == 2:
-                        dim_names.append("width")
-                        dim_units.append("pixels")
-                    else:
-                        dim_names.append(f"dim_{i}")
-                        dim_units.append("units")
+                # Only set the time dimension name
+                dim_names[0] = "time"
+                dim_units[0] = "frames"
                 
                 self.stimulus_dims = {
                     "dims": dim_names,

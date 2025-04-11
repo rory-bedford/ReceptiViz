@@ -53,22 +53,45 @@ class ReceptiveFieldTab(QWidget):
         main_layout.addWidget(top_section_widget)
         main_layout.addWidget(self.plot_container, 1)  # Give plot container the stretch priority
         
-        # Plot button at the absolute bottom
-        self.plot_button = QPushButton("Generate Plot")
-        self.plot_button.setEnabled(False)
-        self.plot_button.clicked.connect(self.generate_plot)
-        self.plot_button.setMinimumWidth(200)  # Make it reasonably wide
-        self.plot_button.setMinimumHeight(40)  # Make it a bit taller for better visibility
+        # Create button container for the three plot buttons
+        button_container = QWidget()
+        button_layout = QHBoxLayout(button_container)
         
-        # Add the plot button directly to the main layout at the end
-        main_layout.addWidget(self.plot_button, 0, Qt.AlignmentFlag.AlignCenter)
+        # Create the three plot buttons
+        self.plot_stimulus_button = QPushButton("Plot Stimulus")
+        self.plot_activity_button = QPushButton("Plot Activity")
+        self.plot_rf_button = QPushButton("Plot Receptive Field")
+        
+        # Set minimum sizes for buttons
+        for button in [self.plot_stimulus_button, self.plot_activity_button, self.plot_rf_button]:
+            button.setMinimumWidth(150)
+            button.setMinimumHeight(40)
+            button.setEnabled(False)
+        
+        # Add buttons to layout
+        button_layout.addStretch()  # Add stretch before buttons
+        button_layout.addWidget(self.plot_stimulus_button)
+        button_layout.addWidget(self.plot_activity_button)
+        button_layout.addWidget(self.plot_rf_button)
+        button_layout.addStretch()  # Add stretch after buttons
+        
+        # Connect button signals
+        self.plot_stimulus_button.clicked.connect(lambda: self.generate_plot("stimulus"))
+        self.plot_activity_button.clicked.connect(lambda: self.generate_plot("activity"))
+        self.plot_rf_button.clicked.connect(lambda: self.generate_plot("receptive_field"))
+        
+        # Add the button container to main layout
+        main_layout.addWidget(button_container, 0, Qt.AlignmentFlag.AlignCenter)
         
     def update_button_state(self, _=None):
         """Update the state of the buttons based on file validity"""
         activity_valid = self.activity_selector.is_valid_file()
         stimulus_valid = self.stimulus_selector.is_valid_file()
         
-        self.plot_button.setEnabled(activity_valid and stimulus_valid)
+        # Enable individual plot buttons based on file validity
+        self.plot_stimulus_button.setEnabled(stimulus_valid)
+        self.plot_activity_button.setEnabled(activity_valid)
+        self.plot_rf_button.setEnabled(activity_valid and stimulus_valid)
         self.dimension_button.setEnabled(activity_valid or stimulus_valid)
         
     def show_dimension_editor(self):
@@ -83,32 +106,30 @@ class ReceptiveFieldTab(QWidget):
             self.activity_selector.update_dimension_info()
             self.stimulus_selector.update_dimension_info()
         
-    def generate_plot(self):
-        """Generate the plot using the processor"""
+    def generate_plot(self, plot_type):
+        """Generate the specified type of plot"""
         try:
-            # Validate compatibility between arrays
-            self.processor.validate_compatibility()
-            
-            if self.processor.get_errors():
-                self.show_error("Validation Error", "\n".join(self.processor.get_errors()))
-                return
+            if plot_type == "receptive_field":
+                # Validate compatibility between arrays
+                self.processor.validate_compatibility()
                 
-            # Process the data
-            self.processor.process()
-            
-            if self.processor.get_errors():
-                self.show_error("Processing Error", "\n".join(self.processor.get_errors()))
-                return
+                if self.processor.get_errors():
+                    self.show_error("Validation Error", "\n".join(self.processor.get_errors()))
+                    return
+                    
+                # Process the data
+                self.processor.process()
                 
-            # Get the result
-            result = self.processor.get_result()
-            
+                if self.processor.get_errors():
+                    self.show_error("Processing Error", "\n".join(self.processor.get_errors()))
+                    return
+                
             # Update the plot
             if self.plot_widget:
                 self.plot_layout.removeWidget(self.plot_widget)
                 self.plot_widget.deleteLater()
                 
-            self.plot_widget = PlotWidget(self.processor)
+            self.plot_widget = PlotWidget(self.processor, plot_type)
             self.plot_layout.addWidget(self.plot_widget)
             
         except Exception as e:
