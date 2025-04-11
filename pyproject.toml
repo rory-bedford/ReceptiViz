@@ -1,0 +1,51 @@
+[project]
+name = "receptiviz"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "rory-bedford", email = "rorybedford@protonmail.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "matplotlib>=3.10.1",
+    "numpy>=2.2.4",
+    "pyqt6>=6.9.0",
+]
+
+[project.scripts]
+receptiviz = "receptiviz.app:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --cov=receptiviz --cov-report=term-missing"
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+pythonpath = ["src"]
+
+[tool.coverage.run]
+source = ["receptiviz"]
+omit = ["*/tests/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "pass",
+    "raise ImportError",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.5",
+]
