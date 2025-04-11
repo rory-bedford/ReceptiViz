@@ -1,5 +1,6 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QPushButton, QMessageBox, 
-                           QHBoxLayout, QGridLayout, QSizePolicy)
+                           QHBoxLayout, QGridLayout, QSizePolicy, QLabel, 
+                           QFormLayout, QGroupBox)
 from PyQt6.QtCore import Qt
 from ..widgets.file_selection import FileSelectionWidget
 from ..widgets.plot_widget import PlotWidget
@@ -14,11 +15,12 @@ class ReceptiveFieldTab(QWidget):
         
         # Create the processor (shared between widgets)
         self.processor = ReceptiveFieldProcessor()
+        self.processor.set_sample_rate(10.0)  # Default sample rate to 10Hz
         
         # Set up main layout
         main_layout = QVBoxLayout(self)
         
-        # File selectors and dimension editor section
+        # File selectors and options section
         top_section_widget = QWidget()
         top_layout = QGridLayout(top_section_widget)
         top_layout.setColumnStretch(0, 6)  # File selectors get much more space
@@ -44,13 +46,15 @@ class ReceptiveFieldTab(QWidget):
         top_layout.addWidget(self.stimulus_selector, 1, 0)
         top_layout.addWidget(self.dimension_button, 0, 1, 2, 1)  # Span 2 rows
         
+        # Add top section to main layout
+        main_layout.addWidget(top_section_widget)
+        
         # Plot widget container (initially empty)
         self.plot_container = QWidget()
         self.plot_layout = QVBoxLayout(self.plot_container)
         self.plot_widget = None
         
         # Add widgets to main layout
-        main_layout.addWidget(top_section_widget)
         main_layout.addWidget(self.plot_container, 1)  # Give plot container the stretch priority
         
         # Create button container for the three plot buttons

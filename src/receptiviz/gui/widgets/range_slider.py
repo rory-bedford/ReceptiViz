@@ -134,18 +134,50 @@ class SliceRangeDialog(QDialog):
         grid.addWidget(QLabel("<b>Points</b>"), 0, 2)
         
         # Add a range slider for each dimension
+        sample_rate = 1.0
+        if hasattr(self.parent(), 'processor'):
+            sample_rate = self.parent().processor.get_sample_rate()
+        
         for i, dim in enumerate(self.dimensions):
             name = dim['name']
             min_val = dim['min']
             max_val = dim['max']
             unit = dim.get('unit', '')
             
-            # Create label with unit
-            unit_str = f" ({unit})" if unit else ""
-            label = QLabel(f"{name}{unit_str}:")
+            # For time dimension, show directly in seconds, not frame indices
+            if name.lower() == 'time' and unit == 's':
+                # Convert frame indices to time values
+                min_time = min_val / sample_rate
+                max_time = max_val / sample_rate
+                
+                # Create time-based labels
+                time_format = "{:.2f}" if max_time < 1 else "{:.1f}"
+                min_time_str = time_format.format(min_time)
+                max_time_str = time_format.format(max_time)
+                
+                # Create label showing range in seconds
+                label = QLabel(f"{name} ({unit}): [{min_time_str}-{max_time_str}]s")
+                
+                # Initialize a slider that works on frame indices
+                # (behind the scenes we still use indices, but display seconds)
+                slider = RangeSlider(min_val, max_val)
+                
+                # Store a reference to the conversions for updates
+                slider.is_time = True
+                slider.sample_rate = sample_rate
+                
+                # Connect the update handler to show seconds
+                slider.rangeChanged.connect(
+                    lambda min_v, max_v, lbl=label, sr=sample_rate: 
+                    self._update_time_display(lbl, min_v, max_v, sr))
+            else:
+                # For non-time dimensions, format as before
+                unit_str = f" ({unit})" if unit else ""
+                label = QLabel(f"{name}{unit_str}: [{min_val}-{max_val}]")
+                slider = RangeSlider(min_val, max_val)
+                slider.is_time = False
             
-            # Create range slider
-            slider = RangeSlider(min_val, max_val)
+            # Add slider to storage
             self.range_sliders[name] = slider
             
             # Create label showing number of points
@@ -153,8 +185,8 @@ class SliceRangeDialog(QDialog):
             self.point_count_labels[name] = points_label
             
             # Connect range change to update point count
-            slider.rangeChanged.connect(lambda min_v, max_v, dim_name=name: 
-                                       self._update_point_count(dim_name, min_v, max_v))
+            slider.rangeChanged.connect(
+                lambda min_v, max_v, dim_name=name: self._update_point_count(dim_name, min_v, max_v))
             
             # Add to grid
             grid.addWidget(label, i+1, 0)
@@ -181,6 +213,20 @@ class SliceRangeDialog(QDialog):
         if dim_name in self.point_count_labels:
             points = max_val - min_val + 1
             self.point_count_labels[dim_name].setText(f"{points}")
+        
+    def _update_time_display(self, label, min_val, max_val, sample_rate):
+        """Update the display label to show time in seconds"""
+        # Convert frame indices to time values
+        min_time = min_val / sample_rate
+        max_time = max_val / sample_rate
+        
+        # Format based on the range
+        time_format = "{:.2f}" if max_time < 1 else "{:.1f}"
+        min_time_str = time_format.format(min_time)
+        max_time_str = time_format.format(max_time)
+        
+        # Update the label text to show the time range in seconds
+        label.setText(f"time (s): [{min_time_str}-{max_time_str}]s")
         
     def get_ranges(self):
         """Get the selected ranges for all dimensions"""

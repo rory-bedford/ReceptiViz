@@ -1,3 +1,4 @@
+* Fix frames vs Hz issue
 * No more tabs
 * Multi unit activity
 * Refactor 'receptive_field' logic to account for all 3 cases (will involve more complex dimension checks)

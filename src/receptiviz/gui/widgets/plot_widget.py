@@ -47,39 +47,68 @@ class PlotWidget(QWidget):
         activity = self.processor.activity
         dim_info = self.processor.get_dimension_info("activity")
         value_info = self.processor.get_value_info("activity")
+        sample_rate = self.processor.get_sample_rate()
         
-        # Define time dimension for range selection
+        # Calculate time axis
+        time_values = np.arange(len(activity)) / sample_rate
+        total_time = len(activity) / sample_rate
+        
+        # Define time dimension for range selection - show frame indices for internal use
+        # but display times in seconds to the user
+        time_format = "{:.2f}" if total_time < 1 else "{:.1f}"
+        total_time_str = time_format.format(total_time)
+        
         dimensions = [{
             'name': 'time',
-            'min': 0,
-            'max': len(activity) - 1,
-            'unit': dim_info['units'][0] if len(dim_info['units']) > 0 else ''
+            'min': 0,  # Frame index (internally we still use indices)
+            'max': len(time_values) - 1,  # Frame index (internally we still use indices)
+            'unit': 's'  # But we display in seconds
         }]
+        
+        # Update the dialog title to show seconds directly
+        title = f"Select Time Range (0-{total_time_str}s)"
         
         # Show slice range dialog
         slice_dialog = SliceRangeDialog(dimensions, self)
+        slice_dialog.setWindowTitle(title)
         if slice_dialog.exec():
-            # Get selected range
-            time_range = slice_dialog.get_ranges()['time']
-            min_t, max_t = time_range
+            # Get selected range in frame indices
+            frame_range = slice_dialog.get_ranges()['time']
+            min_frame, max_frame = frame_range
             
-            # Slice activity data
-            sliced_activity = activity[min_t:max_t+1]
+            # Convert to time values for display
+            min_time = time_values[min_frame]
+            max_time = time_values[max_frame]
             
-            # Create plot
+            # Slice activity data (using frame indices)
+            sliced_activity = activity[min_frame:max_frame+1]
+            sliced_time = time_values[min_frame:max_frame+1]
+            
+            # Create plot widget
             plot_widget = pg.PlotWidget()
             plot_widget.showGrid(x=True, y=True)
-            plot_widget.plot(sliced_activity, pen={'color': 'b', 'width': 2})
             
-            # Get time unit for display
-            time_unit = dim_info['units'][0] if len(dim_info['units']) > 0 else ''
-            unit_str = f" {time_unit}" if time_unit else ""
+            # Plot using actual time values for X-axis (not frame indices)
+            plot_widget.plot(sliced_time, sliced_activity, pen={'color': 'b', 'width': 2})
             
-            # Create more descriptive labels with range info
+            # Format time values with appropriate precision for display
+            duration = max_time - min_time
+            if duration < 0.1:
+                time_format = "{:.3f}"  # milliseconds
+            elif duration < 1:
+                time_format = "{:.2f}"  # tenths of a second
+            else:
+                time_format = "{:.1f}"  # seconds
+                
+            min_time_str = time_format.format(min_time)
+            max_time_str = time_format.format(max_time)
+            
+            # Set labels showing seconds
+            plot_widget.setLabel('bottom', 'Time', units='s')
+            plot_widget.setTitle(f'Neural Activity (Time: {min_time_str}-{max_time_str}s)')
             plot_widget.setLabel('left', value_info['name'], units=value_info['unit'])
-            plot_widget.setLabel('bottom', 'Time', units=time_unit)
-            plot_widget.setTitle(f'Neural Activity (Frames {min_t}-{max_t}{unit_str}, {max_t-min_t+1} points)')
             
+            # Add to layout
             self.layout.addWidget(plot_widget)
     
     def _plot_stimulus(self):
@@ -278,15 +307,32 @@ class PlotWidget(QWidget):
             
             # Create slice title with max index information
             slice_info = []
+            sample_rate = self.processor.get_sample_rate()
+            
             for d, v in slices.items():
                 dim_name = dim_info['dims'][d]
                 dim_unit = dim_info['units'][d] if d < len(dim_info['units']) else ""
-                max_idx = stimulus.shape[d] - 1  # Get max index for this dimension
+                max_idx = stimulus.shape[d] - 1
                 
-                if dim_unit:
-                    slice_info.append(f"{dim_name} = {v}/{max_idx} ({dim_unit})")
+                # Special handling for time dimension - show time in seconds
+                if dim_name.lower() == 'time' and dim_unit == 's':
+                    # Convert frame index to time in seconds
+                    time_sec = v / sample_rate
+                    max_time_sec = max_idx / sample_rate
+                    
+                    # Format time with appropriate precision
+                    time_format = "{:.2f}" if time_sec < 1 else "{:.1f}"
+                    time_str = time_format.format(time_sec)
+                    max_time_str = time_format.format(max_time_sec)
+                    
+                    # Show time in seconds
+                    slice_info.append(f"{dim_name} = {time_str}s of {max_time_str}s")
                 else:
-                    slice_info.append(f"{dim_name} = {v}/{max_idx}")
+                    # Handle non-time dimensions as before
+                    if dim_unit:
+                        slice_info.append(f"{dim_name} = {v}/{max_idx} ({dim_unit})")
+                    else:
+                        slice_info.append(f"{dim_name} = {v}/{max_idx}")
             
             slice_title = f"Slice at {', '.join(slice_info)}"
             
@@ -308,7 +354,7 @@ class PlotWidget(QWidget):
                     dim1_unit=x_unit,
                     range_info=range_info
                 )
-            
+                
     def _create_wireframe_mesh(self, data):
         """Create a wireframe mesh from 2D data"""
         dim0_points, dim1_points = data.shape

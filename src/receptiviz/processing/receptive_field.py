@@ -30,7 +30,25 @@ class ReceptiveFieldProcessor:
         self.activity_value_info = {"name": "Firing rate", "unit": "Hz"}
         self.stimulus_value_info = {"name": "Stimulus", "unit": "a.u."}
         
+        # Time information
+        self.sample_rate = 1.0  # Default 1Hz (time in seconds)
+        
         return self
+    
+    def set_sample_rate(self, sample_rate):
+        """Set the sample rate (Hz) for time dimensions"""
+        if sample_rate <= 0:
+            raise ValueError("Sample rate must be positive")
+        self.sample_rate = float(sample_rate)
+        return self
+    
+    def get_sample_rate(self):
+        """Get the current sample rate"""
+        return self.sample_rate
+    
+    def get_time_axis(self, n_samples):
+        """Get time axis values for the given number of samples"""
+        return np.arange(n_samples) / self.sample_rate
     
     def validate_file(self, file_path, file_type):
         """Validate a single file"""

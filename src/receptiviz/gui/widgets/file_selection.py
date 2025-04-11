@@ -1,8 +1,7 @@
 from PyQt6.QtWidgets import (QWidget, QPushButton, QLabel, QHBoxLayout, QVBoxLayout, 
-                            QFileDialog, QMessageBox, QToolTip, QDialog, QLineEdit)
+                            QFileDialog, QMessageBox, QToolTip)
 from PyQt6.QtCore import pyqtSignal, Qt
 from PyQt6.QtGui import QColor, QPalette, QCursor, QFont
-from .dimension_editor import DimensionEditor
 
 class FileSelectionWidget(QWidget):
     """Self-contained widget for selecting and validating files"""
@@ -26,7 +25,6 @@ class FileSelectionWidget(QWidget):
         
         # File selection row
         file_row = QHBoxLayout()
-        
         self.label = QLabel(label_text)
         self.file_path_label = QLabel("No file selected")
         self.file_path_label.setToolTip("No file selected")
@@ -59,7 +57,7 @@ class FileSelectionWidget(QWidget):
         
         # Note: the dimension button is now managed by the parent tab
         # We'll expose our validation status through is_valid_file()
-        
+    
     def select_file(self):
         """Show file dialog and handle selection"""
         file_path, _ = QFileDialog.getOpenFileName(
@@ -79,7 +77,6 @@ class FileSelectionWidget(QWidget):
             
             # Store validation state and data
             self.is_valid = is_valid
-            
             if is_valid:
                 # Set the data in processor
                 if self.file_type == "activity":
@@ -110,7 +107,7 @@ class FileSelectionWidget(QWidget):
         if not self.is_valid or self.data is None:
             self.dimension_info_label.setText("")
             return
-            
+        
         dim_info = self.processor.get_dimension_info(self.file_type)
         if not dim_info:
             self.dimension_info_label.setText("")
@@ -122,11 +119,27 @@ class FileSelectionWidget(QWidget):
         
         # Create formatted dimension string
         dim_strings = []
+        sample_rate = self.processor.get_sample_rate()
+        
         for i in range(len(shape)):
             name = dim_names[i] if i < len(dim_names) else f"dim_{i}"
             unit = dim_units[i] if i < len(dim_units) else ""
             unit_str = f" ({unit})" if unit else ""
-            dim_strings.append(f"{name}{unit_str}: {shape[i]}")
+            
+            # For time dimension, always show duration in seconds
+            if i == 0 and name.lower() == 'time' and unit == 's':
+                # Calculate duration in seconds directly
+                total_time = shape[i] / sample_rate
+                
+                # Format with appropriate precision
+                time_format = "{:.2f}" if total_time < 1 else "{:.1f}"
+                time_str = time_format.format(total_time)
+                
+                # Show duration in seconds
+                dim_strings.append(f"{name}{unit_str}: {time_str}s ({shape[i]} samples)")
+            else:
+                # For non-time dimensions, show size directly
+                dim_strings.append(f"{name}{unit_str}: {shape[i]}")
         
         # Add value info
         value_info = self.processor.get_value_info(self.file_type)
@@ -157,17 +170,17 @@ class FileSelectionWidget(QWidget):
         msg_box.setText(message)
         msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
         msg_box.exec()
-        
+    
     def show_success(self):
         """Show success message"""
         QToolTip.showText(
             self.mapToGlobal(self.status_label.pos()), 
             "Success! File validated successfully.",
-            self, 
-            self.status_label.rect(), 
+            self,
+            self.status_label.rect(),
             2000  # Hide after 2 seconds
         )
-        
+    
     def show_status_message(self, event):
         """Show status message when clicking on status label"""
         if self.validation_message:

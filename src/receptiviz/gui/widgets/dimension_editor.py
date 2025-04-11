@@ -1,323 +1,248 @@
-from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, 
-                            QFormLayout, QGroupBox, QPushButton, QDialog, QTabWidget)
-from PyQt6.QtCore import pyqtSignal
-
-class DimensionEditor(QWidget):
-    """Widget for editing dimension names and units"""
-    
-    # Signal with array_type, dimension names, and units
-    dimensions_changed = pyqtSignal(str, list, list)
-    
-    def __init__(self, processor, array_type, parent=None):
-        super().__init__(parent)
-        self.processor = processor  # Reference to the ReceptiveFieldProcessor
-        self.array_type = array_type  # "activity" or "stimulus"
-        
-        # Setup UI
-        self.layout = QVBoxLayout(self)
-        self.setup_ui()
-        
-    def setup_ui(self):
-        # Initial empty state
-        self.layout.addWidget(QLabel("No dimensions to edit"))
-    
-    def update_ui(self):
-        """Update UI based on current processor state"""
-        # Clear existing UI
-        self.clear_layout()
-        
-        # Get array data and dimension info
-        array = self.processor.activity if self.array_type == "activity" else self.processor.stimulus
-        
-        if array is None:
-            self.layout.addWidget(QLabel("No data loaded"))
-            return
-            
-        shape = array.shape
-        
-        dim_info = self.processor.get_dimension_info(self.array_type)
-        dim_names = dim_info.get("dims", []) if dim_info else []
-        dim_units = dim_info.get("units", []) if dim_info else []
-        
-        # Title
-        self.layout.addWidget(QLabel(f"{self.array_type.capitalize()} Dimensions:"))
-        
-        # Create form for dimension editors
-        form = QFormLayout()
-        
-        # Add dimension editors
-        for i in range(len(shape)):
-            box = QGroupBox(f"Dimension {i} (size: {shape[i]})")
-            box_layout = QFormLayout(box)
-            
-            # Use default values if dimensions not defined
-            name = dim_names[i] if i < len(dim_names) else ("time" if i == 0 else f"dim_{i}")
-            unit = dim_units[i] if i < len(dim_units) else ("frames" if i == 0 else "units")
-            
-            name_edit = QLineEdit(name)
-            unit_edit = QLineEdit(unit)
-            
-            box_layout.addRow("Name:", name_edit)
-            box_layout.addRow("Units:", unit_edit)
-            
-            # Connect signals with dimension index
-            name_edit.textChanged.connect(lambda text, idx=i, field="name": self.on_field_changed(idx, field, text))
-            unit_edit.textChanged.connect(lambda text, idx=i, field="unit": self.on_field_changed(idx, field, text))
-            
-            form.addRow(box)
-        
-        self.layout.addLayout(form)
-    
-    def on_field_changed(self, index, field_type, text):
-        """Handle field changes - collect current values and emit signal"""
-        # Get current dimension info from processor
-        dim_info = self.processor.get_dimension_info(self.array_type)
-        dim_names = dim_info.get("dims", []).copy() if dim_info else []
-        dim_units = dim_info.get("units", []).copy() if dim_info else []
-        
-        # Ensure lists are long enough
-        array = self.processor.activity if self.array_type == "activity" else self.processor.stimulus
-        if array is None:
-            return
-            
-        while len(dim_names) < len(array.shape):
-            dim_names.append("time" if len(dim_names) == 0 else f"dim_{len(dim_names)}")
-        
-        while len(dim_units) < len(array.shape):
-            dim_units.append("frames" if len(dim_units) == 0 else "units")
-        
-        # Update the changed field
-        if field_type == "name" and 0 <= index < len(dim_names):
-            dim_names[index] = text
-        elif field_type == "unit" and 0 <= index < len(dim_units):
-            dim_units[index] = text
-        
-        # Emit signal to update processor
-        self.dimensions_changed.emit(self.array_type, dim_names, dim_units)
-    
-    def clear_layout(self):
-        """Clear all widgets from the layout"""
-        while self.layout.count():
-            item = self.layout.takeAt(0)
-            widget = item.widget()
-            if widget is not None:
-                widget.deleteLater()
-            elif item.layout() is not None:
-                # Clear sublayouts recursively
-                while item.layout().count():
-                    child = item.layout().takeAt(0)
-                    if child.widget() is not None:
-                        child.widget().deleteLater()
+from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
+                            QLineEdit, QTabWidget, QWidget, QFormLayout, QDoubleSpinBox)
+from PyQt6.QtCore import Qt
 
 class DimensionEditorDialog(QDialog):
-    """Dialog for editing dimensions and data value info for both arrays"""
+    """Dialog for editing dimension names and units"""
     
     def __init__(self, processor, parent=None):
         super().__init__(parent)
         self.processor = processor
-        self.setWindowTitle("Edit Data Dimensions and Units")
-        self.setMinimumWidth(500)
-        self.setMinimumHeight(400)
+        self.setWindowTitle("Edit Dimensions")
+        self.setMinimumWidth(400)
         
-        self.layout = QVBoxLayout(self)
+        # Set up main layout
+        layout = QVBoxLayout(self)
         
-        # Create tabs for organization
-        self.tabs = QTabWidget()
-        self.dimensions_tab = QWidget()
-        self.values_tab = QWidget()
+        # Create tab widget
+        self.tab_widget = QTabWidget()
         
-        self.tabs.addTab(self.dimensions_tab, "Dimensions")
-        self.tabs.addTab(self.values_tab, "Data Values")
+        # Create tabs for activity, stimulus, and time settings
+        self.activity_tab = self._create_activity_tab()
+        self.stimulus_tab = self._create_stimulus_tab()
+        self.time_tab = self._create_time_tab()  # New tab specifically for time settings
         
-        self.setup_dimensions_tab()
-        self.setup_values_tab()
+        # Add tabs
+        self.tab_widget.addTab(self.activity_tab, "Activity")
+        self.tab_widget.addTab(self.stimulus_tab, "Stimulus")
+        self.tab_widget.addTab(self.time_tab, "Time Settings")  # Add time settings tab
         
-        self.layout.addWidget(self.tabs)
+        # Add tab widget to main layout
+        layout.addWidget(self.tab_widget)
         
-        # Add OK button
+        # Create buttons
+        button_layout = QHBoxLayout()
         self.ok_button = QPushButton("OK")
+        self.cancel_button = QPushButton("Cancel")
+        
+        # Connect button signals
         self.ok_button.clicked.connect(self.accept)
-        self.layout.addWidget(self.ok_button)
+        self.cancel_button.clicked.connect(self.reject)
         
-    def setup_dimensions_tab(self):
-        """Setup the dimensions tab"""
-        layout = QVBoxLayout(self.dimensions_tab)
+        # Add buttons to layout
+        button_layout.addStretch()
+        button_layout.addWidget(self.ok_button)
+        button_layout.addWidget(self.cancel_button)
         
-        # Time dimension is shared - it should only be edited once
-        time_group = QGroupBox("Time Dimension (shared)")
-        time_layout = QFormLayout(time_group)
+        # Add button layout to main layout
+        layout.addLayout(button_layout)
         
-        # Get the current time dimension info
-        activity_dims = self.processor.get_dimension_info("activity")
-        stim_dims = self.processor.get_dimension_info("stimulus")
+        # Initialize with current settings
+        self._initialize_fields()
         
-        time_name = "time"
-        time_unit = "frames"
+    def _create_activity_tab(self):
+        """Create the activity tab content"""
+        tab = QWidget()
+        layout = QFormLayout(tab)
         
-        if activity_dims and "dims" in activity_dims and "units" in activity_dims and len(activity_dims["dims"]) > 0:
-            time_name = activity_dims["dims"][0]
-            time_unit = activity_dims["units"][0]
+        # Get activity array info
+        dim_info = self.processor.get_dimension_info("activity")
+        value_info = self.processor.get_value_info("activity")
         
-        self.time_name_edit = QLineEdit(time_name)
-        self.time_unit_edit = QLineEdit(time_unit)
-        
-        time_layout.addRow("Name:", self.time_name_edit)
-        time_layout.addRow("Unit:", self.time_unit_edit)
-        
-        layout.addWidget(time_group)
-        
-        # Activity additional dimensions (should be none since it's 1D, but handle just in case)
-        activity_dims_group = None
-        if self.processor.activity is not None and len(self.processor.activity.shape) > 1:
-            activity_dims_group = QGroupBox("Activity Additional Dimensions")
-            activity_dims_layout = QFormLayout(activity_dims_group)
+        # Check if activity is loaded
+        if not dim_info or self.processor.activity is None:
+            layout.addRow(QLabel("No activity array loaded"))
+            return tab
             
-            self.activity_dim_editors = []
-            
-            for i in range(1, len(self.processor.activity.shape)):
-                name = activity_dims["dims"][i] if activity_dims and "dims" in activity_dims and i < len(activity_dims["dims"]) else f"dim_{i}"
-                unit = activity_dims["units"][i] if activity_dims and "units" in activity_dims and i < len(activity_dims["units"]) else "units"
+        # Add activity value name and unit
+        self.activity_value_name = QLineEdit()
+        self.activity_value_unit = QLineEdit()
+        layout.addRow("Value Name:", self.activity_value_name)
+        layout.addRow("Value Unit:", self.activity_value_unit)
+        
+        return tab
+        
+    def _create_stimulus_tab(self):
+        """Create the stimulus tab content"""
+        tab = QWidget()
+        layout = QFormLayout(tab)
+        
+        # Get stimulus array info
+        dim_info = self.processor.get_dimension_info("stimulus")
+        value_info = self.processor.get_value_info("stimulus")
+        
+        # Check if stimulus is loaded
+        if not dim_info or self.processor.stimulus is None:
+            layout.addRow(QLabel("No stimulus array loaded"))
+            return tab
+        
+        # Add stimulus value name and unit
+        self.stimulus_value_name = QLineEdit()
+        self.stimulus_value_unit = QLineEdit()
+        layout.addRow("Value Name:", self.stimulus_value_name)
+        layout.addRow("Value Unit:", self.stimulus_value_unit)
+        
+        # Add fields for each dimension (except time dimension)
+        self.stim_dim_names = []
+        self.stim_dim_units = []
+        
+        for i, name in enumerate(dim_info.get('dims', [])):
+            if i == 0:  # Skip time dimension (handled in time tab)
+                continue
                 
-                name_edit = QLineEdit(name)
-                unit_edit = QLineEdit(unit)
-                
-                activity_dims_layout.addRow(f"Dimension {i} Name:", name_edit)
-                activity_dims_layout.addRow(f"Dimension {i} Unit:", unit_edit)
-                
-                self.activity_dim_editors.append((name_edit, unit_edit))
+            # Create fields for dimension name and unit
+            name_field = QLineEdit()
+            self.stim_dim_names.append(name_field)
             
-            layout.addWidget(activity_dims_group)
-        
-        # Stimulus additional dimensions
-        stimulus_dims_group = None
-        if self.processor.stimulus is not None and len(self.processor.stimulus.shape) > 1:
-            stimulus_dims_group = QGroupBox("Stimulus Additional Dimensions")
-            stimulus_dims_layout = QFormLayout(stimulus_dims_group)
+            unit_field = QLineEdit()
+            self.stim_dim_units.append(unit_field)
             
-            self.stimulus_dim_editors = []
-            
-            for i in range(1, len(self.processor.stimulus.shape)):
-                name = stim_dims["dims"][i] if stim_dims and "dims" in stim_dims and i < len(stim_dims["dims"]) else f"dim_{i}"
-                unit = stim_dims["units"][i] if stim_dims and "units" in stim_dims and i < len(stim_dims["units"]) else "units"
+            # Format the dimension label with its shape
+            if 'shape' in dim_info and i < len(dim_info['shape']):
+                dim_label = f"Dimension {i} ({dim_info['shape'][i]} points):"
+            else:
+                dim_label = f"Dimension {i}:"
                 
-                name_edit = QLineEdit(name)
-                unit_edit = QLineEdit(unit)
-                
-                stimulus_dims_layout.addRow(f"Dimension {i} (size: {self.processor.stimulus.shape[i]}) Name:", name_edit)
-                stimulus_dims_layout.addRow(f"Dimension {i} Unit:", unit_edit)
-                
-                self.stimulus_dim_editors.append((name_edit, unit_edit))
-            
-            layout.addWidget(stimulus_dims_group)
+            # Add fields to layout
+            layout.addRow(f"{dim_label} Name", name_field)
+            layout.addRow(f"{dim_label} Unit", unit_field)
         
-        if not activity_dims_group and not stimulus_dims_group:
-            layout.addWidget(QLabel("No additional dimensions to edit"))
-            
-        layout.addStretch(1)
+        return tab
         
-    def setup_values_tab(self):
-        """Setup the values tab"""
-        layout = QVBoxLayout(self.values_tab)
+    def _create_time_tab(self):
+        """Create the time settings tab specifically for sample rate"""
+        tab = QWidget()
+        layout = QFormLayout(tab)
         
-        # Get current value info
-        activity_value = self.processor.get_value_info("activity")
-        stimulus_value = self.processor.get_value_info("stimulus")
+        # Add sample rate spinbox
+        self.sample_rate_spinbox = QDoubleSpinBox()
+        self.sample_rate_spinbox.setRange(0.1, 10000.0)  # 0.1 Hz to 10 kHz
+        self.sample_rate_spinbox.setSingleStep(1.0)
+        self.sample_rate_spinbox.setValue(self.processor.get_sample_rate())
+        self.sample_rate_spinbox.setSuffix(" Hz")
+        self.sample_rate_spinbox.setDecimals(1)
         
+        # Add labels with explanations
+        layout.addRow(QLabel("<b>Time Dimensions</b>"))
+        layout.addRow(QLabel("Set the sample rate to convert from frames to seconds"))
+        layout.addRow("Sample Rate:", self.sample_rate_spinbox)
+        
+        # Show the current time settings
+        current_rate = self.processor.get_sample_rate()
+        example_frames = [10, 100, 1000]
+        examples_text = "Examples:\n"
+        for frame in example_frames:
+            time = frame / current_rate
+            unit = "ms" if time < 1 else "s"
+            time_val = time * 1000 if time < 1 else time
+            examples_text += f"• Frame {frame} = {time_val:.1f} {unit}\n"
+        
+        examples_label = QLabel(examples_text)
+        examples_label.setWordWrap(True)
+        layout.addRow(examples_label)
+        
+        # Add a note about implications
+        note_label = QLabel(
+            "Note: All time values will be displayed in seconds in plots. "
+            "Time values are calculated as (frame index / sample rate)."
+        )
+        note_label.setWordWrap(True)
+        note_label.setStyleSheet("font-style: italic; color: gray;")
+        layout.addRow(note_label)
+        
+        # Connect sample rate changes to update examples
+        self.sample_rate_spinbox.valueChanged.connect(
+            lambda rate: self._update_time_examples(examples_label, rate, example_frames)
+        )
+        
+        return tab
+    
+    def _update_time_examples(self, label, rate, frames):
+        """Update the time examples when sample rate changes"""
+        examples_text = "Examples:\n"
+        for frame in frames:
+            time = frame / rate
+            unit = "ms" if time < 1 else "s"
+            time_val = time * 1000 if time < 1 else time
+            examples_text += f"• Frame {frame} = {time_val:.1f} {unit}\n"
+        label.setText(examples_text)
+        
+    def _initialize_fields(self):
+        """Initialize form fields with current values"""
         # Activity value info
-        activity_group = QGroupBox("Activity Data Value")
-        activity_layout = QFormLayout(activity_group)
-        
-        self.activity_name_edit = QLineEdit(activity_value.get("name", "Firing rate") if activity_value else "Firing rate")
-        self.activity_unit_edit = QLineEdit(activity_value.get("unit", "Hz") if activity_value else "Hz")
-        
-        activity_layout.addRow("Name:", self.activity_name_edit)
-        activity_layout.addRow("Unit:", self.activity_unit_edit)
-        
-        layout.addWidget(activity_group)
+        activity_value_info = self.processor.get_value_info("activity")
+        if activity_value_info and hasattr(self, 'activity_value_name'):
+            self.activity_value_name.setText(activity_value_info.get('name', 'Firing rate'))
+            self.activity_value_unit.setText(activity_value_info.get('unit', 'Hz'))
         
         # Stimulus value info
-        stimulus_group = QGroupBox("Stimulus Data Value")
-        stimulus_layout = QFormLayout(stimulus_group)
+        stimulus_value_info = self.processor.get_value_info("stimulus")
+        if stimulus_value_info and hasattr(self, 'stimulus_value_name'):
+            self.stimulus_value_name.setText(stimulus_value_info.get('name', 'Stimulus'))
+            self.stimulus_value_unit.setText(stimulus_value_info.get('unit', 'a.u.'))
         
-        self.stimulus_name_edit = QLineEdit(stimulus_value.get("name", "Stimulus") if stimulus_value else "Stimulus")
-        self.stimulus_unit_edit = QLineEdit(stimulus_value.get("unit", "a.u.") if stimulus_value else "a.u.")
-        
-        stimulus_layout.addRow("Name:", self.stimulus_name_edit)
-        stimulus_layout.addRow("Unit:", self.stimulus_unit_edit)
-        
-        layout.addWidget(stimulus_group)
-        layout.addStretch(1)
-        
+        # Stimulus dimension info
+        dim_info = self.processor.get_dimension_info("stimulus")
+        if dim_info:
+            # Fill dimension fields
+            for i in range(len(self.stim_dim_names)):
+                dim_idx = i + 1  # Skip time dimension
+                if dim_idx < len(dim_info.get('dims', [])):
+                    self.stim_dim_names[i].setText(dim_info['dims'][dim_idx])
+                if dim_idx < len(dim_info.get('units', [])):
+                    self.stim_dim_units[i].setText(dim_info['units'][dim_idx])
+    
     def accept(self):
-        """Save all changes when OK is clicked"""
-        # Save time dimension (shared)
-        time_name = self.time_name_edit.text()
-        time_unit = self.time_unit_edit.text()
+        """Accept changes and update processor settings"""
+        # Update activity value info
+        if hasattr(self, 'activity_value_name'):
+            self.processor.set_value_info(
+                "activity",
+                self.activity_value_name.text(),
+                self.activity_value_unit.text()
+            )
         
-        # Update activity dimensions
-        activity_dims = self.processor.get_dimension_info("activity") or {}
-        activity_dim_names = activity_dims.get("dims", []).copy() if "dims" in activity_dims else []
-        activity_dim_units = activity_dims.get("units", []).copy() if "units" in activity_dims else []
+        # Update stimulus value info
+        if hasattr(self, 'stimulus_value_name'):
+            self.processor.set_value_info(
+                "stimulus",
+                self.stimulus_value_name.text(),
+                self.stimulus_value_unit.text()
+            )
         
-        # Ensure lists are long enough
-        while len(activity_dim_names) < 1:
-            activity_dim_names.append("time")
-        while len(activity_dim_units) < 1:
-            activity_dim_units.append("frames")
+        # Update stimulus dimension info
+        dim_info = self.processor.get_dimension_info("stimulus")
+        if dim_info:
+            new_dim_names = dim_info.get('dims', [])[:]  # Copy current names
+            new_dim_units = dim_info.get('units', [])[:]  # Copy current units
             
-        # Update time dimension
-        activity_dim_names[0] = time_name
-        activity_dim_units[0] = time_unit
-        
-        # Update additional activity dimensions if any
-        if hasattr(self, "activity_dim_editors"):
-            for i, (name_edit, unit_edit) in enumerate(self.activity_dim_editors):
-                dim_idx = i + 1  # +1 because time is at index 0
-                
-                # Ensure lists are long enough
-                while len(activity_dim_names) <= dim_idx:
-                    activity_dim_names.append(f"dim_{len(activity_dim_names)}")
-                while len(activity_dim_units) <= dim_idx:
-                    activity_dim_units.append("units")
+            # Update non-time dimensions
+            for i, name_field in enumerate(self.stim_dim_names):
+                dim_idx = i + 1  # Skip time dimension (0)
+                if dim_idx < len(new_dim_names):
+                    new_dim_names[dim_idx] = name_field.text()
                     
-                activity_dim_names[dim_idx] = name_edit.text()
-                activity_dim_units[dim_idx] = unit_edit.text()
-        
-        # Update stimulus dimensions
-        stimulus_dims = self.processor.get_dimension_info("stimulus") or {}
-        stimulus_dim_names = stimulus_dims.get("dims", []).copy() if "dims" in stimulus_dims else []
-        stimulus_dim_units = stimulus_dims.get("units", []).copy() if "units" in stimulus_dims else []
-        
-        # Ensure lists are long enough
-        while len(stimulus_dim_names) < 1:
-            stimulus_dim_names.append("time")
-        while len(stimulus_dim_units) < 1:
-            stimulus_dim_units.append("frames")
+            for i, unit_field in enumerate(self.stim_dim_units):
+                dim_idx = i + 1  # Skip time dimension (0)
+                if dim_idx < len(new_dim_units):
+                    new_dim_units[dim_idx] = unit_field.text()
             
-        # Update time dimension (shared)
-        stimulus_dim_names[0] = time_name
-        stimulus_dim_units[0] = time_unit
+            # Update dimension info with new names and units
+            self.processor.set_dimension_info("stimulus", new_dim_names, new_dim_units)
+            
+        # Update sample rate
+        sample_rate = self.sample_rate_spinbox.value()
+        self.processor.set_sample_rate(sample_rate)
         
-        # Update additional stimulus dimensions
-        if hasattr(self, "stimulus_dim_editors"):
-            for i, (name_edit, unit_edit) in enumerate(self.stimulus_dim_editors):
-                dim_idx = i + 1  # +1 because time is at index 0
-                
-                # Ensure lists are long enough
-                while len(stimulus_dim_names) <= dim_idx:
-                    stimulus_dim_names.append(f"dim_{len(stimulus_dim_names)}")
-                while len(stimulus_dim_units) <= dim_idx:
-                    stimulus_dim_units.append("units")
-                    
-                stimulus_dim_names[dim_idx] = name_edit.text()
-                stimulus_dim_units[dim_idx] = unit_edit.text()
-        
-        # Save all changes to processor
-        self.processor.set_dimension_info("activity", activity_dim_names, activity_dim_units)
-        self.processor.set_dimension_info("stimulus", stimulus_dim_names, stimulus_dim_units)
-        
-        # Save data value info
-        self.processor.set_value_info("activity", self.activity_name_edit.text(), self.activity_unit_edit.text())
-        self.processor.set_value_info("stimulus", self.stimulus_name_edit.text(), self.stimulus_unit_edit.text())
-        
+        # Call parent's accept method
         super().accept()
