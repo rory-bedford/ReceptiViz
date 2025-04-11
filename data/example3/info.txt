@@ -1,0 +1,3 @@
+Activity shape: (100,)
+Stimulus shape: (100, 10, 10)
+Note: Activity is correlated with center pixel of stimulus

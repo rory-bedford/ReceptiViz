@@ -1,0 +1,2 @@
+Activity shape: (100,)
+Stimulus shape: (100,)
