@@ -5,17 +5,20 @@ repos:
         name: Ruff Lint
         entry: uv run ruff check --fix
         language: system
-        types: [python]
+        always_run: true
+        files: \.py$
 
       - id: ruff-format
         name: Ruff Format
         entry: uv run ruff format
         language: system
-        types: [python]
+        always_run: true
+        files: \.py$
 
       - id: run-pytest
         name: Pytest
         entry: uv run pytest
         language: system
-        types: [python]
+        pass_filenames: false
+        always_run: true
 
