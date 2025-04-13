@@ -1,5 +1,6 @@
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTabWidget
-from .tabs.receptive_field_tab import ReceptiveFieldTab
+
+from receptual.gui.tabs.receptive_field_tab import ReceptiveFieldTab
 
 
 class MainWindow(QWidget):
