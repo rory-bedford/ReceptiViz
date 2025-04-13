@@ -1,1 +1,1 @@
-# ReceptiViz
+# Receptual

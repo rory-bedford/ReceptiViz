@@ -1,7 +1,7 @@
 [project]
-name = "receptiviz"
+name = "receptual"
 version = "0.1.0"
-description = "Add your description here"
+description = "A simple tool for computing and visualising neuron receptive fields."
 readme = "README.md"
 authors = [
     { name = "rory-bedford", email = "rorybedford@protonmail.com" }
@@ -17,7 +17,19 @@ dependencies = [
 ]
 
 [project.scripts]
-receptiviz = "receptiviz.app:main"
+receptual = "receptual.app:main"
+
+[tool.ruff]
+line-length = 88
+preview = true
+
+[tool.ruff.format]
+quote-style = "single"
+indent-style = "tab"
+
+[tool.ruff.lint]
+select = ["E", "F", "B"]
+ignore = ["E203", "E501"]
 
 [build-system]
 requires = ["hatchling"]
@@ -28,14 +40,14 @@ testpaths = ["tests"]
 python_files = "test_*.py"
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = "-v --cov=receptiviz --cov-report=term-missing"
+addopts = "-v --cov=receptual --cov-report=term-missing"
 
 [tool.pytest.ini_options]
 minversion = "6.0"
 pythonpath = ["src"]
 
 [tool.coverage.run]
-source = ["receptiviz"]
+source = ["receptual"]
 omit = ["*/tests/*"]
 
 [tool.coverage.report]
