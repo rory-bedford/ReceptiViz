@@ -1,6 +1,6 @@
 import numpy as np
 import os
-from receptual.utils.data_utils import load_numpy_array
+from receptual.processing.utils.data_utils import load_numpy_array
 
 # Constants for validation
 MIN_TIME_POINTS = 10
