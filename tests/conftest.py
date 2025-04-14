@@ -4,7 +4,7 @@ import pytest
 import numpy as np
 import tempfile
 from pathlib import Path
-from receptual.processing.receptive_field import ReceptiveFieldProcessor
+from receptual.processing.data_manager import DataManager
 
 
 # Create processor fixture

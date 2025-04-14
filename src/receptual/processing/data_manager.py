@@ -1,15 +1,15 @@
 import numpy as np
 import os
-from ..utils.data_utils import load_numpy_array
+from receptual.utils.data_utils import load_numpy_array
 
 # Constants for validation
 MIN_TIME_POINTS = 10
 MIN_SPATIAL_DIM = 5
 
 
-class ReceptiveFieldProcessor:
+class DataManager:
 	"""
-	Handles loading, validating, and processing data for receptive field analysis.
+	Handles loading, validating, and processing data for the gui.
 	"""
 
 	def __init__(self):

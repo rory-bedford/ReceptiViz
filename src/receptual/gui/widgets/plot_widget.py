@@ -4,8 +4,8 @@ import pyqtgraph.opengl as gl
 import numpy as np
 from PyQt6.QtGui import QVector3D
 from PyQt6.QtCore import Qt
-from .dimension_selector import DimensionSelectorDialog
-from .range_slider import SliceRangeDialog
+from receptual.gui.widgets.dimension_selector import DimensionSelectorDialog
+from receptual.gui.widgets.range_slider import SliceRangeDialog
 
 
 class PlotWidget(QWidget):

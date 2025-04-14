@@ -8,10 +8,10 @@ from PyQt6.QtWidgets import (
 	QSizePolicy,
 )
 from PyQt6.QtCore import Qt
-from ..widgets.file_selection import FileSelectionWidget
-from ..widgets.plot_widget import PlotWidget
-from ..widgets.dimension_editor import DimensionEditorDialog
-from ...processing.receptive_field import ReceptiveFieldProcessor
+from receptual.gui.widgets.file_selection import FileSelectionWidget
+from receptual.gui.widgets.plot_widget import PlotWidget
+from receptual.gui.widgets.dimension_editor import DimensionEditorDialog
+from receptual.processing.receptive_field import ReceptiveFieldProcessor
 
 
 class ReceptiveFieldTab(QWidget):
