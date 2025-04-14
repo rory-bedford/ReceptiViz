@@ -6,3 +6,4 @@
 * Plot receptive fields (similar to stimuli but needs a special unit selector)
 * Save computed arrays
 * Screenshots
+* Rewrite compute as FFT methods, move naive implementations to test
