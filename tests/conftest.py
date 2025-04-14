@@ -10,8 +10,8 @@ from receptual.processing.data_manager import DataManager
 # Create processor fixture
 @pytest.fixture
 def processor():
-	"""Create a fresh ReceptiveFieldProcessor for each test."""
-	return ReceptiveFieldProcessor()
+	"""Create a fresh DataManager for each test."""
+	return DataManager()
 
 
 # Fixture for creating temporary test files

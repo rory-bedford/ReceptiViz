@@ -11,7 +11,7 @@ from PyQt6.QtCore import Qt
 from receptual.gui.widgets.file_selection import FileSelectionWidget
 from receptual.gui.widgets.plot_widget import PlotWidget
 from receptual.gui.widgets.dimension_editor import DimensionEditorDialog
-from receptual.processing.receptive_field import ReceptiveFieldProcessor
+from receptual.processing.data_manager import DataManager
 
 
 class ReceptiveFieldTab(QWidget):
@@ -21,7 +21,7 @@ class ReceptiveFieldTab(QWidget):
 		super().__init__(parent)
 
 		# Create the processor (shared between widgets)
-		self.processor = ReceptiveFieldProcessor()
+		self.processor = DataManager()
 		self.processor.set_sample_rate(10.0)  # Default sample rate to 10Hz
 
 		# Set up main layout
