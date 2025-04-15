@@ -17,7 +17,7 @@ import numpy as np
 from numpy.lib.stride_tricks import sliding_window_view
 
 
-def encoder(stimulus, receptive_field):
+def encoder_bk(stimulus, receptive_field):
 	"""Encodes a stimulus using a receptive field.
 
 	This function performs temporal convolution of the stimulus with the
@@ -74,7 +74,7 @@ def encoder(stimulus, receptive_field):
 
 
 # INCOMPLETE IMPLEMENTATION
-def encoder_faster(stimulus, receptive_field):
+def encoder(stimulus, receptive_field):
 	"""Encodes a stimulus using a receptive field.
 
 	This function performs temporal convolution of the stimulus with the
@@ -123,31 +123,23 @@ def encoder_faster(stimulus, receptive_field):
 		receptive_field = receptive_field[:, :, np.newaxis]
 
 	T, K, N = stimulus.shape[0], receptive_field.shape[0], receptive_field.shape[1]
-	spatial_dims = tuple(range(2, receptive_field.ndim))
-	D = np.prod(stimulus.shape[1:])
+	spatial_dims = receptive_field.shape[2:]
 
-	# Pad stimulus at the beginning for causal kernel
-	pad_width = ((K - 1, 0),) + ((0, 0),) * len(spatial_dims)
-	stim_padded = np.pad(stimulus, pad_width, mode='constant')
+	# Manually make design matrix
+	X = np.zeros((T, K, *spatial_dims))
+	for t in range(T):
+		for k in range(K):
+			if t - k >= 0:
+				X[t, k, ...] += stimulus[t - k, ...]
 
-	# Get sliding windows over time axis
-	X = np.array(
-		sliding_window_view(stim_padded, window_shape=K, axis=0)
-	)  # shape: (T, *spatial_dims, K)
+	# Make receptive field matrix
+	receptive_field = receptive_field[::-1,...]
+	rf_matrix = np.transpose(receptive_field, (0, *range(2, receptive_field.ndim), 1)) # shape (K, *spatial, N)
 
-	# Move lag axis to the end and flatten
-	X = X.reshape(T, K * D)  # design matrix of shape (T, K * D)
+	# Multiply to get output
+	result = np.tensordot(X, rf_matrix, axes=(range(1, X.ndim), range(0, rf_matrix.ndim - 1)))
 
-	# Reshape RF to shape (K * D, N)
-	rf_reshaped = receptive_field.transpose(
-		1, *spatial_dims, 0
-	)  # shape: (N, *spatial_dims, K)
-	rf_reshaped = receptive_field.reshape(N, K * D).T  # shape: (K * D, N)
-
-	# Compute the encoded activity
-	activity = X @ rf_reshaped  # shape: (T, N)
-
-	return activity
+	return result
 
 
 # INCOMPLETE IMPLEMENTATION
