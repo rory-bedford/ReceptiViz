@@ -3,6 +3,7 @@
 import numpy as np
 from receptual import encoder, receptive_field
 import pytest
+from .naive_implementations import naive_encoder
 
 
 class TestEncoder:
@@ -191,8 +192,35 @@ class TestEncoder:
 		assert result.shape == expected_output.shape
 		np.testing.assert_allclose(result, expected_output, rtol=1e-5)
 
+	def test_large_arrays_against_naive(self):
+		"""
+		Test encoding with large arrays against naive implementation.
+		Array sizes:
+		- stimulus: (200, 10, 20) 	           # 200 time points, spatial dimension length 10, 20
+		- receptive_field: (20, 30, 10, 20)    # 20-element kernel for 30 neurons across spatial dims
+		- expected_output: (200, 30)           # output activity for 30 neurons across 2000 time points
+		Number tests: 10
+		"""
 
-@pytest.mark.skip(reason='Temporarily disabled for debugging')
+		np.random.seed(42)  # For reproducibility
+
+		for _ in range(10):
+			# Generate random test inputs
+			stimulus = np.random.rand(200, 10, 20)
+			receptive_field = np.random.rand(10, 30, 10, 20)
+
+			# Expected output (calculated using naive implementation)
+			expected_output = naive_encoder(stimulus, receptive_field)
+
+			# Call the encoder function
+			result = encoder(stimulus, receptive_field)
+
+			# Assert the result matches expected output
+			assert result.shape == expected_output.shape
+			np.testing.assert_allclose(result, expected_output, rtol=1e-5)
+
+
+
 class TestReceptiveField:
 	def test_rf_1D(self):
 		"""
@@ -200,8 +228,9 @@ class TestReceptiveField:
 
 		Array sizes:
 		- stimulus: (6,)             # 1D time series
-		- receptive_field: (3, 1)    # 3-element kernel for 1 neuron
-		- expected_output: (6, 1)    # Output activity for 1 neuron across 6 time points
+		- activity: (6, 1)           # activity for 1 neuron
+		- kernel_size: 3             # 3-element kernel
+		- expected_output: (3, 1)    # Receptive field for 1 neuron
 		"""
 		# Define test inputs
 		stimulus = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
@@ -223,8 +252,9 @@ class TestReceptiveField:
 
 		Array sizes:
 		- stimulus: (6,)             # 1D time series
-		- receptive_field: (3, 2)    # 3-element kernel for 2 neurons
-		- expected_output: (6, 2)    # Output activity for 2 neurons across 6 time points
+		- activity: (6, 2)           # activity for 2 neurons
+		- kernel_size: 3             # 3-element kernel
+		- expected_output: (3, 2)    # Receptive field for 2 neurons
 		"""
 		# Define test inputs
 		stimulus = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
@@ -249,8 +279,9 @@ class TestReceptiveField:
 
 		Array sizes:
 		- stimulus: (6, 2)           # 6 time points, spatial dimension length 2
-		- receptive_field: (3, 1, 2) # 3-element kernel for 1 neuron across spatial dim
-		- expected_output: (6, 1)    # Output activity for 1 neuron across 6 time points
+		- activity: (6, 1)           # activity for 1 neuron
+		- kernel_size: 3             # 3-element kernel
+		- expected_output: (3, 1, 2) # Receptive field for 1 neuron across spatial dimensions
 		"""
 		# Define test inputs
 		stimulus = np.array([
@@ -275,8 +306,9 @@ class TestReceptiveField:
 		Test receptive field solver with multiple neurons and spatial dimensions.
 		Array sizes:
 		- stimulus: (6, 2, 3)           # 6 time points, 2 spatial dimensions
-		- receptive_field: (3, 2, 2, 3) # 3-element kernel for 2 neurons across spatial dims
-		- expected_output: (6, 2)       # output activity for 2 neurons across 6 time points
+		- activity: (6, 2)              # activity for 2 neurons
+		- kernel_size: 3                # 3-element kernel
+		- expected_output: (3, 2, 2, 3)    # receptive field for 2 neurons across spatial dimensions
 		"""
 		# Define test inputs
 		stimulus = np.array([
@@ -311,45 +343,29 @@ class TestReceptiveField:
 		assert result.shape == expected_rf.shape
 		np.testing.assert_allclose(result, expected_rf, rtol=1e-5)
 
-	def test_rf_all_dims_different(self):
+	def test_rf_large_arrays_against_naive(self):
 		"""
-		Test receptive field solver with multiple neurons and spatial dimensions of
-		different sizes.
+		Test receptive field solver with large arrays against naive implementation.
 		Array sizes:
-		- stimulus: (6, 2, 3)           # 6 time points, spatial dimensions (2, 3)
-		- receptive_field: (4, 5, 2, 3) # 4-element kernel for 5 neurons across spatial dims
-		- expected_output: (6, 5)       # output activity for 5 neurons across 6 time points
+		- stimulus: (200, 10, 20) 	           # 200 time points, spatial dimension length 10, 20
+		- receptive_field: (20, 30, 10, 20)    # 20-element kernel for 30 neurons across spatial dims
+		- expected_output: (200, 30)           # output activity for 30 neurons across 2000 time points
+		Number tests: 2
 		"""
-		# Define test inputs
-		stimulus = np.array([
-			[[3.0, 7.0, 10.0], [5.0, 4.0, 4.0]],
-			[[5.0, 5.0, 1.0], [6.0, 1.0, 3.0]],
-			[[1.0, 3.0, 9.0], [4.0, 3.0, 3.0]],
-			[[10.0, 2.0, 9.0], [3.0, 6.0, 3.0]],
-			[[10.0, 6.0, 9.0], [5.0, 6.0, 10.0]],
-			[[8.0, 3.0, 7.0], [8.0, 2.0, 9.0]],
-		])
 
-		activity = np.array([
-			[196.0, 124.0, 204.0, 150.0, 300.0],
-			[321.0, 288.0, 350.0, 300.0, 400.0],
-			[410.0, 348.0, 500.0, 400.0, 600.0],
-			[392.0, 377.0, 450.0, 350.0, 550.0],
-			[550.0, 500.0, 600.0, 500.0, 700.0],
-			[609.0, 620.0, 700.0, 600.0, 800.0],
-		])
+		np.random.seed(42)  # For reproducibility
 
-		# Expected output (calculated manually)
-		expected_rf = np.array([
-			[[[4.0, 5.0, 4.0], [2.0, 1.0, 1.0]], [[7.0, 3.0, 5.0], [6.0, 4.0, 1.0]]],
-			[[[8.0, 8.0, 5.0], [9.0, 5.0, 5.0]], [[3.0, 6.0, 7.0], [4.0, 9.0, 10.0]]],
-			[[[2.0, 4.0, 6.0], [6.0, 10.0, 8.0]], [[1.0, 2.0, 2.0], [3.0, 9.0, 9.0]]],
-		])
+		for _ in range(2):
+			# Generate random test inputs
+			stimulus = np.random.rand(200, 10, 20)
+			input_rf = np.random.rand(20, 30, 10, 20)
 
-		# Call the rf function
-		result = receptive_field(stimulus, activity, kernel_size=3)
-		print(result)
+			# Expected output (calculated using naive implementation)
+			activity = naive_encoder(stimulus, input_rf)
 
-		# Assert the result matches expected output
-		assert result.shape == expected_rf.shape
-		np.testing.assert_allclose(result, expected_rf, rtol=1e-5)
+			# Call the encoder function
+			computed_rf = receptive_field(stimulus, activity, kernel_size=20)
+
+			# Assert the result matches expected output
+			assert computed_rf.shape == input_rf.shape
+			np.testing.assert_allclose(computed_rf, input_rf, rtol=1e-5)
