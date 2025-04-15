@@ -15,8 +15,6 @@ TODO:
 
 import numpy as np
 from functools import partial
-import jax
-import jax.numpy as jnp
 
 
 def encoder(stimulus, receptive_field):
@@ -42,9 +40,6 @@ def encoder(stimulus, receptive_field):
 			- axis 0: time/samples (T) (same as input)
 			- axis 1: number of neurons (N)
 			- axis [2:]: spatial dimensions (same as input)
-
-	Notes:
-		
 	"""
 
 	assert stimulus.ndim + 1 == receptive_field.ndim, (
@@ -109,13 +104,6 @@ def receptive_field(stimulus, activity, kernel_size):
 			- axis 0: kernel timepoints (K)
 			- axis 1: number of neurons (N) from activity
 			- axis [2:]: spatial dimensions from stimulus
-
-	Notes:
-		Our implementation of the receptive field solver decorrelates the stimulus
-		to make the outputs unbiased. We artificially make this numerically stable
-		with numpy's pseudo-inverse. Note that while unbiased, this solution can be
-		very high variance if there are regions in frequency space not covered by
-		the stimulus. Therefore, whitened stimuli are preferred where possible.
 	"""
 
 	assert activity.ndim == 2, 'Activity must be a 2D array with shape (T, N)'
@@ -129,22 +117,25 @@ def receptive_field(stimulus, activity, kernel_size):
 		'Kernel size must be an integer or a float/NumPy integer that can be cast to an integer'
 	)
 
-	# Make encoder function to optimize over
-	partial_encoder = partial(encoder, stimulus=stimulus)
+	T, K, N, spatial_dims = stimulus.shape[0], kernel_size, activity.shape[1], stimulus.shape[1:]
 
-	# Initialize receptive field
-	rf = jnp.random.randn(kernel_size, activity.shape[1], *stimulus.shape[1:])
+	# Make design matrix
+	t_idx = np.arange(T)
+	k_idx = np.arange(K)
+	X = stimulus[t_idx[:, None] - k_idx]  # (T, K, *spatial_dims)
+	X[t_idx[:, None] < k_idx] = 0  # Zero out invalid indices
 
-	def lstsq_loss(rf):
-		"""Loss function for least squares fitting."""
-		encoded_stimulus = partial_encoder(rf)
-		return jnp.sum((encoded_stimulus - activity) ** 2)
-
-	for i in range(1000):
-		# Compute gradient of the loss function
-		grads = grad(lstsq_loss)(rf)
-
-		# Update receptive field using gradient descent
-		rf -= 0.01 * grads
+	def one_d_naive(X, activity):
+		X = np.squeeze(X)
+		activity = np.squeeze(activity)
+		cov_X = np.dot(X.T, X) # (K, K)
+		inv_X = np.linalg.pinv(cov_X) # (K, K)
+		correlated = np.dot(X.T, activity) # (T, K)
+		output = np.dot(inv_X, correlated)[::-1] # (K)
+		return output[:, np.newaxis]
+	
+	rf = np.zeros((K, N, *spatial_dims))
+	for i in range(N):
+		rf[:, i, ...] = one_d_naive(X, activity[:, i:i+1]).flatten()
 
 	return rf
