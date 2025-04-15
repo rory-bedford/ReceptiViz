@@ -35,14 +35,6 @@ ignore = ["E203", "E501"]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[tool.hatch.build]
-include = [
-  "receptual/assets/**",
-]
-
-[tool.hatch.metadata]
-allow-direct-references = true
-
 [tool.pytest]
 testpaths = ["tests"]
 python_files = "test_*.py"
