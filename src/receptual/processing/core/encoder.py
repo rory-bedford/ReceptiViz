@@ -14,7 +14,6 @@ TODO:
 """
 
 import numpy as np
-from functools import partial
 
 
 def encoder(stimulus, receptive_field):
@@ -49,7 +48,7 @@ def encoder(stimulus, receptive_field):
 		assert stimulus.shape[1:] == receptive_field.shape[2:], (
 			'Stimulus and receptive field must have the same spatial dimensions'
 		)
-	assert stimulus.shape[0] > receptive_field.shape[0], (
+	assert stimulus.shape[0] >= receptive_field.shape[0], (
 		'Stimulus length must be greater than receptive field length'
 	)
 
@@ -68,11 +67,15 @@ def encoder(stimulus, receptive_field):
 	X[t_idx[:, None] < k_idx] = 0  # Zero out invalid indices
 
 	# Make receptive field matrix
-	receptive_field = receptive_field[::-1,...]
-	rf_matrix = np.transpose(receptive_field, (0, *range(2, receptive_field.ndim), 1)) # shape (K, *spatial, N)
+	receptive_field = receptive_field[::-1, ...]
+	rf_matrix = np.transpose(
+		receptive_field, (0, *range(2, receptive_field.ndim), 1)
+	)  # shape (K, *spatial, N)
 
 	# Multiply to get output
-	result = np.tensordot(X, rf_matrix, axes=(range(1, X.ndim), range(0, rf_matrix.ndim - 1)))
+	result = np.tensordot(
+		X, rf_matrix, axes=(range(1, X.ndim), range(0, rf_matrix.ndim - 1))
+	)
 
 	return result
 
@@ -110,32 +113,44 @@ def receptive_field(stimulus, activity, kernel_size):
 	assert stimulus.shape[0] == activity.shape[0], (
 		'Stimulus and activity must have the same time dimension'
 	)
-	assert kernel_size < stimulus.shape[0], (
+	assert kernel_size <= stimulus.shape[0], (
 		'Kernel size must be less than the stimulus length'
 	)
-	assert isinstance(kernel_size, (int, np.integer, float)) and float(kernel_size).is_integer(), (
+	assert (
+		isinstance(kernel_size, (int, np.integer, float))
+		and float(kernel_size).is_integer()
+	), (
 		'Kernel size must be an integer or a float/NumPy integer that can be cast to an integer'
 	)
 
-	T, K, N, spatial_dims = stimulus.shape[0], kernel_size, activity.shape[1], stimulus.shape[1:]
+	T, K, N, spatial_dims = (
+		stimulus.shape[0],
+		kernel_size,
+		activity.shape[1],
+		stimulus.shape[1:],
+	)
+	D = int(np.prod(spatial_dims))
 
 	# Make design matrix
 	t_idx = np.arange(T)
 	k_idx = np.arange(K)
 	X = stimulus[t_idx[:, None] - k_idx]  # (T, K, *spatial_dims)
 	X[t_idx[:, None] < k_idx] = 0  # Zero out invalid indices
+	X = X[:, ::-1, ...]  # Reverse the kernel axis
+	X = X.reshape(T, K, D)
 
-	def one_d_naive(X, activity):
-		X = np.squeeze(X)
-		activity = np.squeeze(activity)
-		cov_X = np.dot(X.T, X) # (K, K)
-		inv_X = np.linalg.pinv(cov_X) # (K, K)
-		correlated = np.dot(X.T, activity) # (T, K)
-		output = np.dot(inv_X, correlated)[::-1] # (K)
-		return output[:, np.newaxis]
-	
+	def one_n_naive(X, activity):
+		X_flattened = X.reshape(T, K * D)  # (T, K * D)
+		X_cov = np.dot(X_flattened.T, X_flattened)  # (K * D, K * D)
+		X_inv = np.linalg.pinv(X_cov)  # (K * D, K * D)
+		correlated = np.dot(X_flattened.T, activity)  # (T, K)
+		output = np.dot(X_inv, correlated)  # (K)
+		output_reshaped = output.reshape(K, *spatial_dims)  # (K, *spatial_dims)
+		return output_reshaped
+
 	rf = np.zeros((K, N, *spatial_dims))
-	for i in range(N):
-		rf[:, i, ...] = one_d_naive(X, activity[:, i:i+1]).flatten()
+	for n in range(N):
+		rf[:, n, ...] = one_n_naive(X, activity[:, n])
+	rf = rf.reshape(K, N, *spatial_dims)
 
 	return rf
