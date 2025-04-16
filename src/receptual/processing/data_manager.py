@@ -7,9 +7,9 @@ MIN_TIME_POINTS = 10
 MIN_SPATIAL_DIM = 5
 
 
-class DataManager:
+class EncoderDataManager:
 	"""
-	Handles loading, validating, and processing data for the gui.
+	Handles loading, validating, and processing data for the encoder tab.
 	"""
 
 	def __init__(self):

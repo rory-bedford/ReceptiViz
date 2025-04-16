@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTabWidget
 
-from receptual.gui.tabs.receptive_field_tab import ReceptiveFieldTab
+from receptual.gui.tabs.encoder import EncoderTab
 
 
 class MainWindow(QWidget):
@@ -15,12 +15,10 @@ class MainWindow(QWidget):
 		self.tab_widget = QTabWidget()
 
 		# Create tabs
-		self.receptive_field_tab = ReceptiveFieldTab()
-		self.encoding_tab = QWidget()
+		self.encoding_tab = EncoderTab()
 		self.decoding_tab = QWidget()
 
 		# Add tabs to tab widget
-		self.tab_widget.addTab(self.receptive_field_tab, 'Receptive Field')
 		self.tab_widget.addTab(self.encoding_tab, 'Encoding')
 		self.tab_widget.addTab(self.decoding_tab, 'Decoding')
 
