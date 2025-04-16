@@ -502,12 +502,12 @@ class TestReceptiveField:
 		Array sizes:
 		- stimulus: (1000, 10, 5) 	           # 200 time points, spatial dimension length 10, 5
 		- activity: (1000, 30)                  # activity for 30 neurons
-		- kernel_size: 10                      # 20-element kernel
+		- kernel_size: 20                      # 20-element kernel
 		- receptive_field: (20, 30, 10, 5)     # 20-element kernel for 30 neurons across spatial dims
-		Number tests: 2
+		Number tests: 10
 		"""
 
-		for i in range(2):
+		for i in range(10):
 			# Generate random test inputs with different but reproducible seeds
 			np.random.seed(128 + i)
 			stimulus = np.random.rand(1000, 10, 5)

@@ -39,6 +39,19 @@ def encoder(stimulus, receptive_field):
 			- axis 0: time/samples (T) (same as input)
 			- axis 1: number of neurons (N)
 			- axis [2:]: spatial dimensions (same as input)
+
+	Notes:
+		We treat this as the application of a weight matrix found by
+		linear regression to the stimulus:
+
+		Y = X*W
+
+		Where Y is an output matrix of shape (T, N), X is the design matrix
+		of shape (T, K*spatial_dims), and W is the receptive field kernel
+		of shape (K*spatial_dims,N).
+
+	Usage:
+		activity = encoder(stimulus, receptive_field)
 	"""
 
 	assert stimulus.ndim + 1 == receptive_field.ndim, (
@@ -60,24 +73,27 @@ def encoder(stimulus, receptive_field):
 
 	T, K = stimulus.shape[0], receptive_field.shape[0]
 
-	# Make design matrix
+	# Make design matrix #
+	######################
+	# This is a (T by K*D) matrix consisting of all input features where
+	# each feature is the time-shifted version of the previous feature
 	t_idx = np.arange(T)
 	k_idx = np.arange(K)
 	X = stimulus[t_idx[:, None] - k_idx]  # (T, K, *spatial_dims)
 	X[t_idx[:, None] < k_idx] = 0  # Zero out invalid indices
 
-	# Make receptive field matrix
-	receptive_field = receptive_field[::-1, ...]
-	rf_matrix = np.transpose(
+	# Multiply by receptive field #
+	###############################
+	# This is Y = X*W
+	receptive_field = receptive_field[::-1, ...]  # Shape: (K, N, *spatial_dims)
+	receptive_field = np.transpose(
 		receptive_field, (0, *range(2, receptive_field.ndim), 1)
-	)  # shape (K, *spatial, N)
+	)  # Shape: (K, *spatial, N)
+	activity = np.tensordot(
+		X, receptive_field, axes=(range(1, X.ndim), range(0, receptive_field.ndim - 1))
+	)  # Shape: (T, N)
 
-	# Multiply to get output
-	result = np.tensordot(
-		X, rf_matrix, axes=(range(1, X.ndim), range(0, rf_matrix.ndim - 1))
-	)
-
-	return result
+	return activity
 
 
 # INCOMPLETE IMPLEMENTATION
@@ -107,6 +123,20 @@ def receptive_field(stimulus, activity, kernel_size):
 			- axis 0: kernel timepoints (K)
 			- axis 1: number of neurons (N) from activity
 			- axis [2:]: spatial dimensions from stimulus
+
+	Notes:
+		We treat this as the solution of a linear regression problem where the
+		stimulus makes up the design matrix, activity is the target output,
+		and the receptive field is the weight matrix:
+
+		W = (X^T * X)^-1 * (X^T * Y)
+
+		Where Y is an output matrix of shape (T, N), X is the design matrix
+		of shape (T, K*spatial_dims), and W is the receptive field kernel
+		of shape (K*spatial_dims,N).
+
+	Usage:
+		receptive_field = receptive_field(stimulus, activity, kernel_size)
 	"""
 
 	assert activity.ndim == 2, 'Activity must be a 2D array with shape (T, N)'
@@ -131,28 +161,29 @@ def receptive_field(stimulus, activity, kernel_size):
 	)
 	D = int(np.prod(spatial_dims))
 
-	stimulus = stimulus.reshape(T, D)  # Flatten spatial dimensions
-
-	# Make design matrix
+	# Make design matrix #
+	######################
+	# This is a (T by K*D) matrix consisting of all input features where
+	# each feature is the time-shifted version of the previous feature
+	stimulus = stimulus.reshape(T, D)  # Shape: (T, D)
 	t_idx = np.arange(T)
 	k_idx = np.arange(K)
-	X = stimulus[t_idx[:, None] - k_idx]  # (T, K, *spatial_dims)
+	X = stimulus[t_idx[:, None] - k_idx]  # Shape: (T, K, D)
 	X[t_idx[:, None] < k_idx] = 0  # Zero out invalid indices
 	X = X[:, ::-1, ...]  # Reverse the kernel axis
+	X = X.reshape(T, K * D)  # Shape: (T, K * D)
 
-	def one_n_naive(X, activity):
-		X_flattened = X.reshape(T, K * D)  # (T, K * D)
-		X_cov = np.dot(X_flattened.T, X_flattened)  # (K * D, K * D)
-		X_inv = np.linalg.pinv(X_cov)  # (K * D, K * D)
-		correlated = np.dot(X_flattened.T, activity)  # (T, K)
-		output = np.dot(X_inv, correlated)  # (K)
-		output_reshaped = output.reshape(K, D)  # (K, *spatial_dims)
-		return output_reshaped
+	# Compute decorrelated receptive field #
+	########################################
+	# This is W = (X^T * X)^-1 * (X^T * Y)
+	X_cov = np.dot(X.T, X)  # Shape: (K * D, K * D)
+	X_inv = np.linalg.pinv(X_cov)  # Shape: (K * D, K * D)
+	correlated = np.tensordot(X, activity, (0, 0))  # Shape (K * D, N)
+	rf = np.dot(X_inv, correlated)  # Shape: (K * D, N)
 
-	rf = np.zeros((K, N, D))
-	for n in range(N):
-		rf[:, n, ...] = one_n_naive(X, activity[:, n])
-
-	rf = rf.reshape(K, N, *spatial_dims)  # Reshape to original spatial dimensions
+	# Reshape to original dimensions
+	rf = rf.reshape(K, D, N)  # Shape: (K, D, N)
+	rf = rf.transpose(0, 2, 1)  # Shape: (K, N, D)
+	rf = rf.reshape(K, N, *spatial_dims)  # Shape: (K, N, *spatial_dims)
 
 	return rf
