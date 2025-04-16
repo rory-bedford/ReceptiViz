@@ -131,13 +131,14 @@ def receptive_field(stimulus, activity, kernel_size):
 	)
 	D = int(np.prod(spatial_dims))
 
+	stimulus = stimulus.reshape(T, D)  # Flatten spatial dimensions
+
 	# Make design matrix
 	t_idx = np.arange(T)
 	k_idx = np.arange(K)
 	X = stimulus[t_idx[:, None] - k_idx]  # (T, K, *spatial_dims)
 	X[t_idx[:, None] < k_idx] = 0  # Zero out invalid indices
 	X = X[:, ::-1, ...]  # Reverse the kernel axis
-	X = X.reshape(T, K, D)
 
 	def one_n_naive(X, activity):
 		X_flattened = X.reshape(T, K * D)  # (T, K * D)
@@ -145,12 +146,13 @@ def receptive_field(stimulus, activity, kernel_size):
 		X_inv = np.linalg.pinv(X_cov)  # (K * D, K * D)
 		correlated = np.dot(X_flattened.T, activity)  # (T, K)
 		output = np.dot(X_inv, correlated)  # (K)
-		output_reshaped = output.reshape(K, *spatial_dims)  # (K, *spatial_dims)
+		output_reshaped = output.reshape(K, D)  # (K, *spatial_dims)
 		return output_reshaped
 
-	rf = np.zeros((K, N, *spatial_dims))
+	rf = np.zeros((K, N, D))
 	for n in range(N):
 		rf[:, n, ...] = one_n_naive(X, activity[:, n])
-	rf = rf.reshape(K, N, *spatial_dims)
+
+	rf = rf.reshape(K, N, *spatial_dims)  # Reshape to original spatial dimensions
 
 	return rf

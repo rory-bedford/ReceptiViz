@@ -6,4 +6,4 @@
 * Plot receptive fields (similar to stimuli but needs a special unit selector)
 * Save computed arrays
 * Screenshots
-* Rewrite compute as FFT methods, move naive implementations to test
+* Document how our methods work for smaller kernels but can break if they're too large relative to length of the recording due to padding
