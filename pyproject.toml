@@ -18,6 +18,7 @@ dependencies = [
 
 [project.scripts]
 receptual = "receptual.app:main"
+generate-sample-data = "receptual.processing.utils.generate_sample_data:main"
 
 [tool.ruff]
 line-length = 88

@@ -26,6 +26,7 @@ jobs:
 
       - name: Generate sample data
         run: |
+          rm -rf sample_data
           generate_sample_data --output-dir sample_data
 
       - name: Zip sample data

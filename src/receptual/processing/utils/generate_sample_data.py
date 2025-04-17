@@ -1,4 +1,5 @@
 import numpy as np
+import argparse
 from pathlib import Path
 
 
@@ -71,14 +72,30 @@ def generate_test_data(output_dir: str, n_timepoints: int = 100, seed: int = 42)
 				f.write('Note: Activity is correlated with center pixel of stimulus\n')
 				f.write(f'Receptive field shape: {receptive_field.shape}\n')
 
+	return base_dir
+
+
+def main():
+	"""Main entry point for the command line tool."""
+	parser = argparse.ArgumentParser(description='Generate test data for receptual')
+	parser.add_argument(
+		'--output-dir', type=str, help='Directory to save generated data'
+	)
+
+	args = parser.parse_args()
+
+	# If no output directory is specified, use the default location
+	if args.output_dir is None:
+		# Find the repository root
+		current_file = Path(__file__)
+		repo_root = current_file.parents[4]  # Go up 4 levels to reach the repo root
+		output_dir = repo_root / 'sample_data'
+	else:
+		output_dir = args.output_dir
+
+	output_path = generate_test_data(output_dir)
+	print(f'Generated test data in {output_path}')
+
 
 if __name__ == '__main__':
-	# Find the repository root (assuming this script is in src/receptual/processing/utils)
-	current_file = Path(__file__)
-	repo_root = current_file.parents[4]  # Go up 4 levels to reach the repo root
-
-	# Create a sample_data directory at the repo root
-	output_dir = repo_root / 'sample_data'
-
-	generate_test_data(output_dir)
-	print(f'Generated test data in {output_dir}')
+	main()
