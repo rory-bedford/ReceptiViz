@@ -88,7 +88,7 @@ def main():
 		output_dir = args.output_dir
 
 	output_path = download_sample_data(output_dir)
-	print(f'Dwonloaded sample data in {output_path}')
+	print(f'Downloaded sample data in {output_path}')
 
 
 if __name__ == '__main__':

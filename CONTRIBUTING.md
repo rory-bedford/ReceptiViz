@@ -71,6 +71,6 @@ Prior to do so, make sure you:
 Then you can run:
 
 ```bash
-git tag v*.*.*
+git tag -a v*.*.* -m ':bookmark: v*.*.*'
 git push origin v*.*.*
 ```
