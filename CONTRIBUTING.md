@@ -56,3 +56,20 @@ uv run pytest                   # Run tests
 - Code must pass linting (`ruff check`)
 - Code must be tested (`pytest`)
 - All CI checks must pass before merging
+
+## Publishing
+
+Git tags pushed to main get built into a Github release, get pushed to PyPI, and have docs built and published by ReadtheDocs. This can only be done by administrators of the package.
+
+Prior to do so, make sure you:
+
+- Update the version in pyproject.toml
+- Add an entry to the changelog
+- Commit these changes
+
+Then you can run:
+
+```bash
+git tag v*.*.*
+git push origin v*.*.*
+```
