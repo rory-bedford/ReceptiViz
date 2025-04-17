@@ -39,6 +39,7 @@ jobs:
           files: |
             dist/*.tar.gz
             dist/*.whl
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload sample data to GitHub Release
         uses: softprops/action-gh-release@v1
