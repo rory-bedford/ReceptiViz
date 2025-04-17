@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+
 jobs:
   build-and-upload:
     runs-on: ubuntu-latest
@@ -39,6 +42,7 @@ jobs:
           files: |
             dist/*.tar.gz
             dist/*.whl
+          body_path: CHANGELOG.md
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload sample data to GitHub Release
