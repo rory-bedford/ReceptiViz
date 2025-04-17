@@ -1,6 +1,10 @@
 # Changelog
 
-## [0.1.0a2] - 2025004-17
+## [0.1.0a3] - 2025-04-17
+### ReadtheDocs
+- Testing documentation versioning
+
+## [0.1.0a2] - 2025-04-17
 ### CI
 - Testing publish to PyPI action
 
