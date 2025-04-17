@@ -17,11 +17,13 @@ class FileSelectionWidget(QWidget):
 
 	# Signal when file validation status changes
 	validation_changed = pyqtSignal(bool)
+	# Add a signal for when a file is selected
+	file_selected = pyqtSignal()
 
 	def __init__(self, label_text, file_type, processor, parent=None):
 		super().__init__(parent)
 		self.label_text = label_text
-		self.file_type = file_type  # "activity" or "stimulus"
+		self.file_type = file_type  # "activity", "stimulus" or "receptive_field"
 		self.processor = processor  # Reference to the processor for validation
 		self.selected_file = None
 		self.is_valid = False
@@ -102,6 +104,9 @@ class FileSelectionWidget(QWidget):
 					self.validation_message = (
 						f'Success! Valid {len(data.shape)}D stimulus array.'
 					)
+				elif self.file_type == 'receptive_field':
+					self.processor.set_receptive_field(data)
+					self.validation_message = 'Success! Valid receptive field array.'
 
 				# Update UI to show valid state
 				self.data = data
@@ -118,6 +123,8 @@ class FileSelectionWidget(QWidget):
 
 			# Emit signal for parent to update UI state
 			self.validation_changed.emit(is_valid)
+			# Emit the file_selected signal when a file is chosen
+			self.file_selected.emit()
 
 	def update_dimension_info(self):
 		"""Update the dimension info display"""

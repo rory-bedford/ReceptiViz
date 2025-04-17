@@ -4,14 +4,14 @@ import pytest
 import numpy as np
 import tempfile
 from pathlib import Path
-from receptual.processing.data_manager import DataManager
+from receptual.processing.data_manager import EncoderDataManager
 
 
 # Create processor fixture
 @pytest.fixture
 def processor():
 	"""Create a fresh DataManager for each test."""
-	return DataManager()
+	return EncoderDataManager()
 
 
 # Fixture for creating temporary test files

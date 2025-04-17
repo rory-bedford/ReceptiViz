@@ -40,12 +40,23 @@ class EncoderTab(QWidget):
 		self.stimulus_selector = FileSelectionWidget(
 			'Stimulus Array:', 'stimulus', self.processor
 		)
+		self.receptive_field_selector = FileSelectionWidget(
+			'Receptive Field Array:', 'receptive_field', self.processor
+		)
 
 		# Connect validation signals to update button state
 		self.activity_selector.validation_changed.connect(self.update_button_state)
 		self.stimulus_selector.validation_changed.connect(self.update_button_state)
+		self.receptive_field_selector.validation_changed.connect(
+			self.update_button_state
+		)
 
-		# Dimension editing button - taller to fill the height of both selectors
+		# Also connect file selection changes
+		self.activity_selector.file_selected.connect(self.update_button_state)
+		self.stimulus_selector.file_selected.connect(self.update_button_state)
+		self.receptive_field_selector.file_selected.connect(self.update_button_state)
+
+		# Dimension editing button - taller to fill the height of all selectors
 		self.dimension_button = QPushButton('Edit\nDimensions')
 		self.dimension_button.setEnabled(False)
 		self.dimension_button.clicked.connect(self.show_dimension_editor)
@@ -57,7 +68,8 @@ class EncoderTab(QWidget):
 		# Add widgets to the top layout
 		top_layout.addWidget(self.activity_selector, 0, 0)
 		top_layout.addWidget(self.stimulus_selector, 1, 0)
-		top_layout.addWidget(self.dimension_button, 0, 1, 2, 1)  # Span 2 rows
+		top_layout.addWidget(self.receptive_field_selector, 2, 0)
+		top_layout.addWidget(self.dimension_button, 0, 1, 3, 1)  # Span 3 rows
 
 		# Add top section to main layout
 		main_layout.addWidget(top_section_widget)
@@ -116,12 +128,62 @@ class EncoderTab(QWidget):
 		"""Update the state of the buttons based on file validity"""
 		activity_valid = self.activity_selector.is_valid_file()
 		stimulus_valid = self.stimulus_selector.is_valid_file()
+		receptive_field_valid = self.receptive_field_selector.is_valid_file()
+
+		# Define the two valid modes and check current state
+		activity_mode = activity_valid
+		direct_rf_mode = receptive_field_valid
+
+		# If both are active, prioritize the most recently selected one
+		if activity_valid and receptive_field_valid:
+			# This shouldn't happen with our UI logic, but handle it just in case
+			self.set_selector_enabled(self.receptive_field_selector, False)
+			self.set_selector_enabled(self.activity_selector, True)
+			direct_rf_mode = False
+		else:
+			# Otherwise enable/disable based on the current mode
+			if activity_mode:
+				# In activity mode, disable RF selector
+				self.set_selector_enabled(self.activity_selector, True)
+				self.set_selector_enabled(self.receptive_field_selector, False)
+			elif direct_rf_mode:
+				# In RF mode, disable activity selector
+				self.set_selector_enabled(self.receptive_field_selector, True)
+				self.set_selector_enabled(self.activity_selector, False)
+			else:
+				# If no selection yet, enable both options
+				self.set_selector_enabled(self.receptive_field_selector, True)
+				self.set_selector_enabled(self.activity_selector, True)
+
+		# Stimulus is always enabled
+		self.set_selector_enabled(self.stimulus_selector, True)
 
 		# Enable individual plot buttons based on file validity
 		self.plot_stimulus_button.setEnabled(stimulus_valid)
 		self.plot_activity_button.setEnabled(activity_valid)
-		self.plot_rf_button.setEnabled(activity_valid and stimulus_valid)
-		self.dimension_button.setEnabled(activity_valid or stimulus_valid)
+
+		# Receptive field can be plotted if:
+		# 1. Direct RF mode with valid RF file
+		# 2. Activity mode with valid activity and stimulus files
+		rf_plot_enabled = (direct_rf_mode and receptive_field_valid) or (
+			activity_mode and activity_valid and stimulus_valid
+		)
+		self.plot_rf_button.setEnabled(rf_plot_enabled)
+
+		# Enable dimension editor if any file is valid
+		self.dimension_button.setEnabled(
+			activity_valid or stimulus_valid or receptive_field_valid
+		)
+
+	def set_selector_enabled(self, selector, enabled):
+		"""Enable or disable a file selector while keeping it visible"""
+		selector.setEnabled(enabled)
+		# Keep the file info visible but gray out the controls
+		for child in selector.findChildren(QPushButton) + selector.findChildren(
+			QWidget
+		):
+			if hasattr(child, 'setEnabled'):
+				child.setEnabled(enabled)
 
 	def show_dimension_editor(self):
 		"""Show unified dimension editor dialog"""
@@ -129,14 +191,16 @@ class EncoderTab(QWidget):
 		if (
 			not self.activity_selector.is_valid_file()
 			and not self.stimulus_selector.is_valid_file()
+			and not self.receptive_field_selector.is_valid_file()
 		):
 			return
 
 		editor_dialog = DimensionEditorDialog(self.processor, self)
 		if editor_dialog.exec():
-			# Update dimension info display in both selectors
+			# Update dimension info display in all selectors
 			self.activity_selector.update_dimension_info()
 			self.stimulus_selector.update_dimension_info()
+			self.receptive_field_selector.update_dimension_info()
 
 	def generate_plot(self, plot_type):
 		"""Generate the specified type of plot"""
