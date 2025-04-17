@@ -15,11 +15,14 @@ dependencies = [
     "pyopengl-accelerate>=3.1.9",
     "pyqt6>=6.9.0",
     "pyqtgraph>=0.13.7",
+    "requests>=2.32.3",
+    "tqdm>=4.67.1",
 ]
 
 [project.scripts]
 receptual = "receptual.app:main"
 generate-sample-data = "receptual.processing.utils.generate_sample_data:main"
+download-sample-data = "receptual.processing.utils.download_sample_data:main"
 
 [tool.ruff]
 line-length = 88
