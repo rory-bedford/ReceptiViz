@@ -64,6 +64,7 @@ Git tags pushed to main get built into a Github release, get pushed to PyPI, and
 Prior to do so, make sure you:
 
 - Update the version in pyproject.toml
+- Update the version in docs/source/conf.py
 - Add an entry to the changelog
 - Commit these changes
 
