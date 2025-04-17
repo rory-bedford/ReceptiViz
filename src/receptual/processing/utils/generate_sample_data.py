@@ -48,6 +48,17 @@ def generate_test_data(output_dir: str, n_timepoints: int = 100, seed: int = 42)
 				0, 1, n_timepoints
 			)
 
+			# Generate receptive field - simple correlation map
+			receptive_field = np.zeros((height, width))
+			for i in range(height):
+				for j in range(width):
+					receptive_field[i, j] = np.corrcoef(activity, stimulus[:, i, j])[
+						0, 1
+					]
+
+			# Save receptive field
+			np.save(dim_dir / 'receptive_field.npy', receptive_field)
+
 		# Save the data
 		np.save(dim_dir / 'activity.npy', activity)
 		np.save(dim_dir / 'stimulus.npy', stimulus)
@@ -58,9 +69,16 @@ def generate_test_data(output_dir: str, n_timepoints: int = 100, seed: int = 42)
 			f.write(f'Stimulus shape: {stimulus.shape}\n')
 			if dim == 3:
 				f.write('Note: Activity is correlated with center pixel of stimulus\n')
+				f.write(f'Receptive field shape: {receptive_field.shape}\n')
 
 
 if __name__ == '__main__':
-	output_dir = Path(__file__).parent
+	# Find the repository root (assuming this script is in src/receptual/processing/utils)
+	current_file = Path(__file__)
+	repo_root = current_file.parents[4]  # Go up 4 levels to reach the repo root
+
+	# Create a sample_data directory at the repo root
+	output_dir = repo_root / 'sample_data'
+
 	generate_test_data(output_dir)
 	print(f'Generated test data in {output_dir}')

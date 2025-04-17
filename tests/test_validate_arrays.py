@@ -3,7 +3,7 @@
 import numpy as np
 
 
-class TestDataManagerValidation:
+class TestEncoderDataManagerValidation:
 	def test_validate_valid_activity_file(self, processor, valid_activity_1d):
 		file_path, expected_data = valid_activity_1d
 
