@@ -9,7 +9,7 @@ from receptual.gui.widgets.range_slider import SliceRangeDialog
 
 
 class PlotWidget(QWidget):
-	def __init__(self, processor, plot_type='receptive_field', parent=None):
+	def __init__(self, processor, plot_type, parent=None):
 		super().__init__(parent)
 		self.processor = processor
 		self.plot_type = plot_type

@@ -12,13 +12,13 @@ class TestEncoder:
 		Test 1D stimulus encoding with a single neuron.
 
 		Array sizes:
-		- stimulus: (6,)             # 1D time series
-		- receptive_field: (3, 1)    # 3-element kernel for 1 neuron
+		- stimulus: (6, 1)           # 1D time series
+		- receptive_field: (3, 1, 1) # 3-element kernel for 1 neuron
 		- expected_output: (6, 1)    # Output activity for 1 neuron across 6 time points
 		"""
 		# Define test inputs
-		stimulus = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
-		receptive_field = np.array([0.5, 0.25, 0.25])[:, np.newaxis]
+		stimulus = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])[:, np.newaxis]
+		receptive_field = np.array([0.5, 0.25, 0.25])[:, np.newaxis, np.newaxis]
 
 		# Expected output (calculated manually)
 		expected_output = np.array([0.25, 0.75, 1.75, 2.75, 3.75, 4.75])[:, np.newaxis]
@@ -35,13 +35,15 @@ class TestEncoder:
 		Test 1D stimulus encoding with multiple neurons.
 
 		Array sizes:
-		- stimulus: (6,)             # 1D time series
-		- receptive_field: (3, 2)    # 3-element kernel for 2 neurons
+		- stimulus: (6, 1)           # 1D time series
+		- receptive_field: (3, 2, 1) # 3-element kernel for 2 neurons
 		- expected_output: (6, 2)    # Output activity for 2 neurons across 6 time points
 		"""
 		# Define test inputs
-		stimulus = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
-		receptive_field = np.array([[0.5, 0.25, 0.25], [1.0, 1.5, 2.0]]).T
+		stimulus = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])[:, np.newaxis]
+		receptive_field = np.array([[0.5, 0.25, 0.25], [1.0, 1.5, 2.0]]).T[
+			:, :, np.newaxis
+		]
 
 		# Expected output (calculated manually)
 		expected_output = np.array([
@@ -261,17 +263,17 @@ class TestReceptiveField:
 		Test 1D receptive field solver with a single neuron.
 
 		Array sizes:
-		- stimulus: (6,)             # 1D time series
-		- activity: (6, 1)           # activity for 1 neuron
-		- kernel_size: 3             # 3-element kernel
-		- expected_output: (3, 1)    # Receptive field for 1 neuron
+		- stimulus: (6, 1)             # 1D time series
+		- activity: (6, 1)             # activity for 1 neuron
+		- kernel_size: 3               # 3-element kernel
+		- expected_output: (3, 1, 1)   # Receptive field for 1 neuron
 		"""
 		# Define test inputs
-		stimulus = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+		stimulus = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])[:, np.newaxis]
 		activity = np.array([0.25, 0.75, 1.75, 2.75, 3.75, 4.75])[:, np.newaxis]
 
 		# Expected output (calculated manually)
-		expected_rf = np.array([0.5, 0.25, 0.25])[:, np.newaxis]
+		expected_rf = np.array([0.5, 0.25, 0.25])[:, np.newaxis, np.newaxis]
 
 		# Call the rf function
 		result = receptive_field(stimulus, activity, kernel_size=3)
@@ -285,20 +287,20 @@ class TestReceptiveField:
 		Test 1D receptive field solver with multiple neurons.
 
 		Array sizes:
-		- stimulus: (6,)             # 1D time series
-		- activity: (6, 2)           # activity for 2 neurons
-		- kernel_size: 3             # 3-element kernel
-		- expected_output: (3, 2)    # Receptive field for 2 neurons
+		- stimulus: (6, 1)              # 1D time series
+		- activity: (6, 2)              # activity for 2 neurons
+		- kernel_size: 3                # 3-element kernel
+		- expected_output: (3, 2, 1)    # Receptive field for 2 neurons
 		"""
 		# Define test inputs
-		stimulus = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+		stimulus = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])[:, np.newaxis]
 		activity = np.array([
 			[0.25, 0.75, 1.75, 2.75, 3.75, 4.75],
 			[2.0, 5.5, 10.0, 14.5, 19.0, 23.5],
 		]).T
 
 		# Expected output (calculated manually)
-		expected_rf = np.array([[0.5, 0.25, 0.25], [1.0, 1.5, 2.0]]).T
+		expected_rf = np.array([[0.5, 0.25, 0.25], [1.0, 1.5, 2.0]]).T[..., np.newaxis]
 
 		# Call the rf function
 		result = receptive_field(stimulus, activity, kernel_size=3)

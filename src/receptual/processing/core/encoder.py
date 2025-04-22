@@ -26,7 +26,7 @@ def encoder(stimulus, receptive_field):
 		stimulus: numpy.ndarray
 			Input stimulus with shape:
 			- axis 0: time/samples (T)
-			- axis [1:]: spatial dimensions (optional)
+			- axis [1:]: spatial dimensions
 		receptive_field: numpy.ndarray
 			Receptive field kernel with shape:
 			- axis 0: kernel timepoints (K) where K < T
@@ -38,7 +38,6 @@ def encoder(stimulus, receptive_field):
 			The encoded stimulus with shape:
 			- axis 0: time/samples (T) (same as input)
 			- axis 1: number of neurons (N)
-			- axis [2:]: spatial dimensions (same as input)
 
 	Notes:
 		We treat this as the application of a weight matrix found by
@@ -54,22 +53,17 @@ def encoder(stimulus, receptive_field):
 		activity = encoder(stimulus, receptive_field)
 	"""
 
+	assert stimulus.ndim >= 2, 'Stimulus must be at least a 2D array'
+	assert receptive_field.ndim >= 3, 'Receptive field must be at least a 3D array'
 	assert stimulus.ndim + 1 == receptive_field.ndim, (
 		'Dimensions of arrays are not compatible'
 	)
-	if stimulus.ndim > 1:
-		assert stimulus.shape[1:] == receptive_field.shape[2:], (
-			'Stimulus and receptive field must have the same spatial dimensions'
-		)
+	assert stimulus.shape[1:] == receptive_field.shape[2:], (
+		'Stimulus and receptive field must have the same spatial dimensions'
+	)
 	assert stimulus.shape[0] >= receptive_field.shape[0], (
 		'Stimulus length must be greater than receptive field length'
 	)
-
-	# Ensure arrays are correctly shaped
-	if stimulus.ndim == 1:
-		stimulus = stimulus[:, np.newaxis]
-	if receptive_field.ndim == 2:
-		receptive_field = receptive_field[:, :, np.newaxis]
 
 	T, K = stimulus.shape[0], receptive_field.shape[0]
 
@@ -96,7 +90,6 @@ def encoder(stimulus, receptive_field):
 	return activity
 
 
-# INCOMPLETE IMPLEMENTATION
 def receptive_field(stimulus, activity, kernel_size):
 	"""Computes the receptive field kernel that maps stimulus to activity.
 
@@ -107,15 +100,13 @@ def receptive_field(stimulus, activity, kernel_size):
 		stimulus: numpy.ndarray
 			Input stimulus with shape:
 			- axis 0: time/samples (T)
-			- axis [1:]: spatial dimensions (optional)
+			- axis [1:]: spatial dimensions
 		activity: numpy.ndarray
 			Neural activity with shape:
 			- axis 0: time/samples (T) (must match stimulus)
 			- axis 1: number of neurons (N)
 		kernel_size: int
 			Temporal size of the receptive field kernel (K)
-		regularization: float
-			Regularization parameter for ridge regression (lambda)
 
 	Returns:
 		numpy.ndarray:
@@ -139,6 +130,7 @@ def receptive_field(stimulus, activity, kernel_size):
 		receptive_field = receptive_field(stimulus, activity, kernel_size)
 	"""
 
+	assert stimulus.ndim >= 2, 'Stimulus must be at least a 2D array'
 	assert activity.ndim == 2, 'Activity must be a 2D array with shape (T, N)'
 	assert stimulus.shape[0] == activity.shape[0], (
 		'Stimulus and activity must have the same time dimension'

@@ -17,8 +17,8 @@ class FileSelectionWidget(QWidget):
 
 	# Signal when file validation status changes
 	validation_changed = pyqtSignal(bool)
-	# Add a signal for when a file is selected
-	file_selected = pyqtSignal()
+	# Signal for when a file is selected - now passes the file path
+	file_selected = pyqtSignal(str)
 
 	def __init__(self, label_text, file_type, processor, parent=None):
 		super().__init__(parent)
@@ -27,7 +27,6 @@ class FileSelectionWidget(QWidget):
 		self.processor = processor  # Reference to the processor for validation
 		self.selected_file = None
 		self.is_valid = False
-		self.data = None
 		self.validation_message = ''
 
 		# Set up UI
@@ -68,9 +67,6 @@ class FileSelectionWidget(QWidget):
 		self.select_button.clicked.connect(self.select_file)
 		self.status_label.mousePressEvent = self.show_status_message
 
-		# Note: the dimension button is now managed by the parent tab
-		# We'll expose our validation status through is_valid_file()
-
 	def select_file(self):
 		"""Show file dialog and handle selection"""
 		file_path, _ = QFileDialog.getOpenFileName(
@@ -87,51 +83,56 @@ class FileSelectionWidget(QWidget):
 			)  # Show just the filename
 			self.file_path_label.setToolTip(file_path)  # Full path on hover
 
-			# Validate file using processor
-			is_valid, errors, data = self.processor.validate_file(
-				file_path, self.file_type
-			)
+			# Clear processor errors before validation
+			self.processor.clear_errors()
 
-			# Store validation state and data
-			self.is_valid = is_valid
-			if is_valid:
-				# Set the data in processor
-				if self.file_type == 'activity':
-					self.processor.set_activity(data)
-					self.validation_message = 'Success! Valid activity array.'
-				elif self.file_type == 'stimulus':
-					self.processor.set_stimulus(data)
-					self.validation_message = (
-						f'Success! Valid {len(data.shape)}D stimulus array.'
-					)
-				elif self.file_type == 'receptive_field':
-					self.processor.set_receptive_field(data)
-					self.validation_message = 'Success! Valid receptive field array.'
+			# Emit the file_selected signal - validation will be handled by EncoderTab
+			self.file_selected.emit(file_path)
 
-				# Update UI to show valid state
-				self.data = data
-				self.update_status(True)
-				self.update_dimension_info()  # Show dimension info
-				self.show_success()
-			else:
-				# Update UI to show invalid state and show error
-				self.data = None
-				self.validation_message = '\n'.join(errors)
-				self.update_status(False)
-				self.dimension_info_label.setText('')
-				self.show_error(self.validation_message)
-
-			# Emit signal for parent to update UI state
-			self.validation_changed.emit(is_valid)
-			# Emit the file_selected signal when a file is chosen
-			self.file_selected.emit()
+			# We'll assume the file becomes valid after selection, later the results
+			# will be passed to our update methods from the EncoderTab
 
 	def update_dimension_info(self):
-		"""Update the dimension info display"""
-		if not self.is_valid or self.data is None:
+		"""Update the dimension info display based on current processor state"""
+		if self.file_type == 'activity' and self.processor.activity is None:
+			self.dimension_info_label.setText('')
+			self.is_valid = False
+			self.update_status(False)
+			return
+		elif self.file_type == 'stimulus' and self.processor.stimulus is None:
+			self.dimension_info_label.setText('')
+			self.is_valid = False
+			self.update_status(False)
+			return
+		elif (
+			self.file_type == 'receptive_field'
+			and self.processor.receptive_field is None
+		):
+			self.dimension_info_label.setText('')
+			self.is_valid = False
+			self.update_status(False)
+			return
+
+		# Get array shape based on file type
+		shape = None
+		if self.file_type == 'activity':
+			shape = self.processor.activity.shape
+			self.is_valid = True
+		elif self.file_type == 'stimulus':
+			shape = self.processor.stimulus.shape
+			self.is_valid = True
+		elif self.file_type == 'receptive_field':
+			shape = self.processor.receptive_field.shape
+			self.is_valid = True
+
+		if shape is None:
 			self.dimension_info_label.setText('')
 			return
 
+		# The array is valid at this point, update status
+		self.update_status(True)
+
+		# Get dimension information
 		dim_info = self.processor.get_dimension_info(self.file_type)
 		if not dim_info:
 			self.dimension_info_label.setText('')
@@ -139,7 +140,6 @@ class FileSelectionWidget(QWidget):
 
 		dim_names = dim_info.get('dims', [])
 		dim_units = dim_info.get('units', [])
-		shape = self.data.shape
 
 		# Create formatted dimension string
 		dim_strings = []
@@ -177,18 +177,47 @@ class FileSelectionWidget(QWidget):
 		else:
 			self.dimension_info_label.setText(' × '.join(dim_strings))
 
-	def update_status(self, is_valid):
+	def update_status(self, is_valid, message=None):
 		"""Update the status indicator"""
+		if message is not None:
+			self.validation_message = message
+
+		self.is_valid = is_valid
 		palette = self.status_label.palette()
+
 		if is_valid:
 			palette.setColor(QPalette.ColorRole.WindowText, QColor('green'))
 			self.status_label.setText('✓')
+			if not self.validation_message:
+				self.validation_message = f'Success! Valid {self.file_type} array.'
+
 			self.status_label.setToolTip(self.validation_message)
 		else:
 			palette.setColor(QPalette.ColorRole.WindowText, QColor('red'))
 			self.status_label.setText('✗')
+			if not self.validation_message:
+				self.validation_message = 'Invalid file'
+
 			self.status_label.setToolTip(self.validation_message)
+
 		self.status_label.setPalette(palette)
+		self.validation_changed.emit(is_valid)
+
+	def set_success(self, message=None):
+		"""Set the widget to success state with optional message"""
+		if message:
+			self.validation_message = message
+		else:
+			self.validation_message = f'Success! Valid {self.file_type} array.'
+
+		self.update_status(True)
+		self.show_success()
+
+	def set_error(self, message):
+		"""Set the widget to error state with the given message"""
+		self.validation_message = message
+		self.update_status(False)
+		self.show_error(message)
 
 	def show_error(self, message):
 		"""Show error message"""
@@ -221,4 +250,11 @@ class FileSelectionWidget(QWidget):
 
 	def is_valid_file(self):
 		"""Return if the file is valid"""
-		return self.is_valid
+		# Determine validity based on processor state
+		if self.file_type == 'activity':
+			return self.processor.activity is not None
+		elif self.file_type == 'stimulus':
+			return self.processor.stimulus is not None
+		elif self.file_type == 'receptive_field':
+			return self.processor.receptive_field is not None
+		return False
