@@ -1,76 +1,197 @@
 import numpy as np
 import argparse
 from pathlib import Path
+from receptual import encoder
 
 
-def generate_test_data(output_dir: str, n_timepoints: int = 100, seed: int = 42):
-	"""Generate test data with different stimulus dimensions."""
+def generate_white_stimulus(shape: tuple) -> np.ndarray:
+	"""Generate a white stimulus with the given shape."""
+	stimulus = np.random.randn(*shape)
+	return stimulus
+
+
+def generate_centre_surround() -> np.ndarray:
+	"""
+	Generate a centre-surround stimulus.
+	Returns:
+		np.ndarray: The generated centre-surround stimulus.
+	Notes:
+		- The centre-surround stimulus is generated using two Gaussian functions.
+		- K: 1
+		- N: 1
+		- S: (100,100)
+	"""
+	shape = (100, 100)
+	mean = (50, 50)
+	sigma1 = (15, 15)
+	sigma2 = (30, 30)
+
+	y, x = np.indices(shape)
+	centre_surround = np.exp(
+		-((x - mean[0]) ** 2 + (y - mean[1]) ** 2) / (2 * sigma1[0] ** 2)
+	)
+	centre_surround -= np.exp(
+		-((x - mean[0]) ** 2 + (y - mean[1]) ** 2) / (2 * sigma2[0] ** 2)
+	)
+
+	centre_surround = centre_surround / np.max(np.abs(centre_surround))
+	centre_surround = centre_surround[np.newaxis, np.newaxis, :, :]
+
+	return centre_surround
+
+
+def generate_on_off() -> np.ndarray:
+	"""
+	Generate an on-off stimulus.
+	Returns:
+		np.ndarray: The generated on-off stimulus.
+	Notes:
+		- The on-off stimulus is generated using two Gaussian functions.
+		- K: 20
+		- N: 1
+		- S: (100,100)
+	"""
+	shape = (100, 100)
+	mean1 = (75, 75)
+	mean2 = (25, 25)
+	sigma1 = (15, 15)
+	sigma2 = (15, 15)
+
+	y, x = np.indices(shape)
+	on_off = np.exp(-((x - mean1[0]) ** 2 + (y - mean1[1]) ** 2) / (2 * sigma1[0] ** 2))
+	on_off -= np.exp(
+		-((x - mean2[0]) ** 2 + (y - mean2[1]) ** 2) / (2 * sigma2[0] ** 2)
+	)
+
+	t = np.indices((20,))
+	time_component = np.sin(t[0] / 20 * np.pi) * np.exp(-t[0] / 20)
+
+	on_off = time_component[:, np.newaxis, np.newaxis] * on_off[np.newaxis, :, :]
+	on_off = on_off / np.max(np.abs(on_off))
+	on_off = on_off[np.newaxis, ...]
+
+	return on_off
+
+
+def generate_gabor_filters() -> np.ndarray:
+	"""
+	Generate Gabor filters for three neurons.
+	Returns:
+		np.ndarray: The generated Gabor filters.
+	Notes:
+		- The Gabor filters are generated using a Gaussian function and a cosine.
+		- K: 1
+		- N: 3
+		- S: (100,100)
+	"""
+	shape = (100, 100)
+	mean = (50, 50)
+	sigma = (20, 20)
+	frequency = 10
+	theta1, theta2, theta3 = np.pi / 4, np.pi / 2, 3 * np.pi / 4
+
+	y, x = np.indices(shape)
+	gabor1 = np.exp(
+		-((x - mean[0]) ** 2 + (y - mean[1]) ** 2) / (2 * sigma[0] ** 2)
+	) * np.cos(
+		2 * np.pi * frequency * (x - mean[0]) * np.cos(theta1)
+		+ (y - mean[1]) * np.sin(theta1)
+	)
+	gabor2 = np.exp(
+		-((x - mean[0]) ** 2 + (y - mean[1]) ** 2) / (2 * sigma[0] ** 2)
+	) * np.cos(
+		2 * np.pi * frequency * (x - mean[0]) * np.cos(theta2)
+		+ (y - mean[1]) * np.sin(theta2)
+	)
+	gabor3 = np.exp(
+		-((x - mean[0]) ** 2 + (y - mean[1]) ** 2) / (2 * sigma[0] ** 2)
+	) * np.cos(
+		2 * np.pi * frequency * (x - mean[0]) * np.cos(theta3)
+		+ (y - mean[1]) * np.sin(theta3)
+	)
+	gabor_filters = np.stack([gabor1, gabor2, gabor3], axis=0)
+	gabor_filters = gabor_filters / np.max(np.abs(gabor_filters))
+	gabor_filters = gabor_filters[np.newaxis, ...]
+
+	return gabor_filters
+
+
+def generate_moving_gaussian() -> np.ndarray:
+	"""
+	Generate a moving Gaussian stimulus.
+	Returns:
+		np.ndarray: The generated moving Gaussian stimulus.
+	Notes:
+		- The moving Gaussian stimulus is generated using a Gaussian function.
+		- K: 30
+		- N: 1
+		- S: (100,100)
+	"""
+	shape = (100, 100)
+	sigma = (20, 20)
+	y, x = np.indices(shape)
+	moving_mean = range(35, 65)
+
+	stacked_gaussians = []
+	for mean in moving_mean:
+		moving_gaussian = np.exp(
+			-((x - mean) ** 2 + (y - mean) ** 2) / (2 * sigma[0] ** 2)
+		)
+		stacked_gaussians.append(moving_gaussian)
+
+	moving_gaussian = np.stack(stacked_gaussians, axis=0)
+	moving_gaussian = moving_gaussian / np.max(np.abs(moving_gaussian))
+	moving_gaussian = moving_gaussian[:, np.newaxis, ...]
+
+	return moving_gaussian
+
+
+def generate_test_data(output_dir: str, seed: int = 42):
+	"""Generate test data to visualize the functionality of the receptual package."""
 	np.random.seed(seed)
 
-	# Create output directories
 	base_dir = Path(output_dir)
-	for dim in [1, 2, 3]:
-		dim_dir = base_dir / f'example{dim}'
-		dim_dir.mkdir(parents=True, exist_ok=True)
+	base_dir.mkdir(parents=True, exist_ok=True)
 
-		# Generate activity data (always 1D)
-		activity = np.random.normal(0, 1, n_timepoints)
+	# Make centre-surround data
+	receptive_field = generate_centre_surround()
+	stimulus = generate_white_stimulus((500, 100, 100))
+	activity = encoder(stimulus, receptive_field)
+	centre_surround_dir = base_dir / 'encoding' / 'centre_surround'
+	centre_surround_dir.mkdir(parents=True, exist_ok=True)
+	np.save(centre_surround_dir / 'stimulus.npy', stimulus)
+	np.save(centre_surround_dir / 'receptive_field.npy', receptive_field)
+	np.save(centre_surround_dir / 'activity.npy', activity)
 
-		# Generate stimulus data based on dimension
-		if dim == 1:
-			# 1D stimulus (time series)
-			stimulus = np.random.normal(0, 1, n_timepoints)
+	# Make on-off data
+	receptive_field = generate_on_off()
+	stimulus = generate_white_stimulus((500, 100, 100))
+	activity = encoder(stimulus, receptive_field)
+	on_off_dir = base_dir / 'encoding' / 'on_off'
+	on_off_dir.mkdir(parents=True, exist_ok=True)
+	np.save(on_off_dir / 'stimulus.npy', stimulus)
+	np.save(on_off_dir / 'receptive_field.npy', receptive_field)
+	np.save(on_off_dir / 'activity.npy', activity)
 
-		elif dim == 2:
-			# 2D stimulus (time x space)
-			spatial_dim = 10
-			stimulus = np.random.normal(0, 1, (n_timepoints, spatial_dim))
+	# Make Gabor filters data
+	receptive_field = generate_gabor_filters()
+	stimulus = generate_white_stimulus((500, 100, 100))
+	activity = encoder(stimulus, receptive_field)
+	gabor_dir = base_dir / 'encoding' / 'gabor'
+	gabor_dir.mkdir(parents=True, exist_ok=True)
+	np.save(gabor_dir / 'stimulus.npy', stimulus)
+	np.save(gabor_dir / 'receptive_field.npy', receptive_field)
+	np.save(gabor_dir / 'activity.npy', activity)
 
-		else:  # dim == 3
-			# 3D stimulus (time x height x width)
-			height = width = 10
-			stimulus = np.random.normal(0, 1, (n_timepoints, height, width))
-
-			# Add some structure to make it interesting
-			for t in range(n_timepoints):
-				# Add a moving gaussian bump
-				x = int(5 + 3 * np.sin(2 * np.pi * t / n_timepoints))
-				y = int(5 + 3 * np.cos(2 * np.pi * t / n_timepoints))
-				stimulus[t] += np.exp(
-					-(
-						(np.arange(width)[:, None] - x) ** 2
-						+ (np.arange(height)[None, :] - y) ** 2
-					)
-					/ 4
-				)
-
-			# Make activity correlate with the center pixel
-			activity = 0.7 * stimulus[:, 5, 5] + 0.3 * np.random.normal(
-				0, 1, n_timepoints
-			)
-
-			# Generate receptive field - simple correlation map
-			receptive_field = np.zeros((height, width))
-			for i in range(height):
-				for j in range(width):
-					receptive_field[i, j] = np.corrcoef(activity, stimulus[:, i, j])[
-						0, 1
-					]
-
-			# Save receptive field
-			np.save(dim_dir / 'receptive_field.npy', receptive_field)
-
-		# Save the data
-		np.save(dim_dir / 'activity.npy', activity)
-		np.save(dim_dir / 'stimulus.npy', stimulus)
-
-		# Save metadata about the arrays
-		with open(dim_dir / 'info.txt', 'w') as f:
-			f.write(f'Activity shape: {activity.shape}\n')
-			f.write(f'Stimulus shape: {stimulus.shape}\n')
-			if dim == 3:
-				f.write('Note: Activity is correlated with center pixel of stimulus\n')
-				f.write(f'Receptive field shape: {receptive_field.shape}\n')
+	# Make moving Gaussian data
+	receptive_field = generate_moving_gaussian()
+	stimulus = generate_white_stimulus((500, 100, 100))
+	activity = encoder(stimulus, receptive_field)
+	moving_gaussian_dir = base_dir / 'encoding' / 'moving_gaussian'
+	moving_gaussian_dir.mkdir(parents=True, exist_ok=True)
+	np.save(moving_gaussian_dir / 'stimulus.npy', stimulus)
+	np.save(moving_gaussian_dir / 'receptive_field.npy', receptive_field)
+	np.save(moving_gaussian_dir / 'activity.npy', activity)
 
 	return base_dir
 
