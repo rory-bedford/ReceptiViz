@@ -8,6 +8,16 @@ MIN_TIME_POINTS = 10
 class EncoderDataManager:
 	"""
 	Handles loading, validating, and processing data for the encoder tab.
+
+	Attributes:
+		- activity: Neural activity data
+		- stimulus: Stimulus data
+		- receptive_field: Receptive field data
+		- activity_info: Information about the activity data
+		- stimulus_info: Information about the stimulus data
+		- receptive_field_info: Information about the receptive field data
+		- sample_rate: Sample rate for the data
+		- errors: List of validation errors
 	"""
 
 	def __init__(self):
@@ -18,46 +28,40 @@ class EncoderDataManager:
 		Reset all state variables to their default values.
 
 		Returns:
-			EncoderDataManager: Self for method chaining
+			EncoderDataManager: Self
 		"""
 		self.activity = None
 		self.stimulus = None
 		self.receptive_field = None
-		self.result = None
+
 		self.errors = []
 
-		# Initialize all metadata in a consistent format
-		self.activity_value_info = {
+		self.activity_info = {
 			'name': 'Activity',
 			'unit': 'Hz',
-			'dimensions': None,
-			'dims': ['Time', 'Neurons'],
-			'units': ['s', ''],
+			'timestamps': None,
+			'no_neurons': None,
+			'status': None,
 		}
 
-		# Stimulus can have arbitrary dimensions (time + N spatial dimensions)
-		self.stimulus_value_info = {
+		self.stimulus_info = {
 			'name': 'Stimulus',
-			'unit': 'a.u.',
-			'dimensions': None,
-			'dims': [
-				'Time'
-			],  # Just define time dimension, others will be added based on data
-			'units': ['s'],
+			'unit': 'n/a',
+			'timestamps': None,
+			'spatial_dims': None,
+			'status': None,
 		}
 
-		# Receptive Field can have arbitrary dimensions
-		self.receptive_field_value_info = {
+		self.receptive_field_info = {
 			'name': 'Receptive Field',
-			'unit': 'a.u.',
-			'dimensions': None,
-			'dims': [
-				'Neurons'
-			],  # Just define neurons dimension, others will be added based on data
-			'units': [''],
+			'unit': 'n/a',
+			'kernel_size': None,
+			'no_neurons': None,
+			'spatial_dims': None,
+			'status': None,
 		}
 
-		self.sample_rate = 1.0
+		self.sample_rate = None
 
 		return self
 
@@ -73,18 +77,12 @@ class EncoderDataManager:
 		self.sample_rate = float(sample_rate)
 		return self
 
-	def get_sample_rate(self):
-		"""
-		Get the current sample rate from the data manager.
-
-		Returns:
-			float: Sample rate in Hz
-		"""
-		return self.sample_rate
-
 	def get_time_axis(self, n_samples):
 		"""Get time axis values for the given number of samples"""
-		return np.arange(n_samples) / self.sample_rate
+		if self.sample_rate is None:
+			return np.arange(n_samples)
+		else:
+			return np.arange(n_samples) / self.sample_rate
 
 	def set_activity(self, file_path):
 		"""
@@ -99,35 +97,25 @@ class EncoderDataManager:
 		Returns:
 			bool: True if loading was successful, False otherwise
 		"""
+		assert self.receptive_field is None, (
+			'Cannot set activity data when receptive field is already set'
+		)
 		try:
 			data = load_numpy_array(file_path)
-			if self.validate_activity(data):
+			if self._validate_activity(data):
 				self.activity = data
-				self.activity_value_info['dimensions'] = data.shape
+				self.activity_info['timestamps'] = data.shape[0]
+				self.activity_info['no_neurons'] = data.shape[1]
+				self.activity_info['status'] = 'loaded'
 
-				# If stimulus exists, compute receptive field
 				if self.stimulus is not None:
 					try:
-						# Compute receptive field using receptual library
-						computed_rf = receptual.receptive_field(self.stimulus, data)
-
-						# Validate the computed receptive field
-						if self.validate_receptive_field(computed_rf):
-							self.receptive_field = computed_rf
-							self.receptive_field_value_info['dimensions'] = (
-								computed_rf.shape
-							)
-							self.receptive_field_value_info['name'] = (
-								'Computed Receptive Field'
-							)
-							self.receptive_field_value_info['computed'] = True
-						else:
-							# Keep activity but log warning about RF computation
-							self.errors.append(
-								'Computed receptive field is invalid - keeping activity data only'
-							)
+						computed_receptive_field = receptual.receptive_field(
+							self.stimulus, data
+						)
+						self.set_receptive_field(computed_receptive_field)
+						self.receptive_field_info['status'] = 'computed'
 					except Exception as e:
-						# Keep activity but log warning about RF computation
 						self.errors.append(
 							f'Failed to compute receptive field: {str(e)}'
 						)
@@ -150,9 +138,10 @@ class EncoderDataManager:
 		"""
 		try:
 			data = load_numpy_array(file_path)
-			if self.validate_stimulus(data):
+			if self._validate_stimulus(data):
 				self.stimulus = data
-				self.stimulus_value_info['dimensions'] = data.shape
+				self.stimulus_info['dimensions'] = data.shape
+				self.stimulus_info['status'] = 'loaded'
 				return True
 			return False
 		except Exception as e:
@@ -174,31 +163,16 @@ class EncoderDataManager:
 		"""
 		try:
 			data = load_numpy_array(file_path)
-			if self.validate_receptive_field(data):
+			if self._validate_receptive_field(data):
 				self.receptive_field = data
-				self.receptive_field_value_info['dimensions'] = data.shape
-
-				# If stimulus exists, compute activity
+				self.receptive_field_info['dimensions'] = data.shape
+				self.receptive_field_info['status'] = 'loaded'
 				if self.stimulus is not None:
 					try:
-						# Compute activity using receptual library
 						computed_activity = receptual.encoder(self.stimulus, data)
-
-						# Validate the computed activity
-						if self.validate_activity(computed_activity):
-							self.activity = computed_activity
-							self.activity_value_info['dimensions'] = (
-								computed_activity.shape
-							)
-							self.activity_value_info['name'] = 'Computed Activity'
-							self.activity_value_info['computed'] = True
-						else:
-							# Keep receptive field but log warning about activity computation
-							self.errors.append(
-								'Computed activity is invalid - keeping receptive field data only'
-							)
+						self.set_activity(computed_activity)
+						self.activity_info['status'] = 'computed'
 					except Exception as e:
-						# Keep receptive field but log warning about activity computation
 						self.errors.append(f'Failed to compute activity: {str(e)}')
 
 				return True
@@ -207,7 +181,7 @@ class EncoderDataManager:
 			self.errors.append(f'Error loading receptive field data: {str(e)}')
 			return False
 
-	def validate_activity(self, data):
+	def _validate_activity(self, data):
 		"""
 		Validate activity data format and dimensions.
 
@@ -253,7 +227,7 @@ class EncoderDataManager:
 
 		return True
 
-	def validate_stimulus(self, data):
+	def _validate_stimulus(self, data):
 		"""
 		Validate stimulus data format and dimensions.
 
@@ -292,17 +266,17 @@ class EncoderDataManager:
 
 		if self.receptive_field is not None:
 			stim_spatial_dims = data.shape[1:]
-			rf_spatial_dims = self.receptive_field.shape[2:]
+			receptive_field_spatial_dims = self.receptive_field.shape[2:]
 
-			if stim_spatial_dims != rf_spatial_dims:
+			if stim_spatial_dims != receptive_field_spatial_dims:
 				self.errors.append(
-					f'Stimulus spatial dimensions {stim_spatial_dims} must match receptive field spatial dimensions {rf_spatial_dims}'
+					f'Stimulus spatial dimensions {stim_spatial_dims} must match receptive field spatial dimensions {receptive_field_spatial_dims}'
 				)
 				return False
 
 		return True
 
-	def validate_receptive_field(self, data):
+	def _validate_receptive_field(self, data):
 		"""
 		Validate receptive field data format and dimensions.
 
@@ -329,67 +303,12 @@ class EncoderDataManager:
 
 		if self.stimulus is not None:
 			stim_spatial_dims = self.stimulus.shape[1:]
-			rf_spatial_dims = data.shape[2:]
+			receptive_field_spatial_dims = data.shape[2:]
 
-			if rf_spatial_dims != stim_spatial_dims:
+			if receptive_field_spatial_dims != stim_spatial_dims:
 				self.errors.append(
-					f'Receptive field spatial dimensions {rf_spatial_dims} must match stimulus spatial dimensions {stim_spatial_dims}'
+					f'Receptive field spatial dimensions {receptive_field_spatial_dims} must match stimulus spatial dimensions {stim_spatial_dims}'
 				)
 				return False
 
 		return True
-
-	def get_errors(self):
-		"""
-		Get the list of accumulated validation errors.
-
-		Returns:
-			list: List of error messages
-		"""
-		return self.errors
-
-	def clear_errors(self):
-		"""
-		Clear the list of validation errors.
-		"""
-		self.errors = []
-
-	def set_dimension_info(self, array_type, dim_names=None, dim_units=None):
-		"""Set dimension names and units for an array"""
-		value_info = self.get_value_info(array_type)
-		if value_info:
-			if dim_names:
-				value_info['dims'] = dim_names
-			if dim_units:
-				value_info['units'] = dim_units
-		return self
-
-	def get_dimension_info(self, array_type):
-		"""Get dimension information for an array"""
-		value_info = self.get_value_info(array_type)
-		if value_info:
-			return {
-				'dims': value_info.get('dims', []),
-				'units': value_info.get('units', []),
-			}
-		return None
-
-	def set_value_info(self, array_type, value_name=None, value_unit=None):
-		"""Set the name and unit for the data values"""
-		value_info = self.get_value_info(array_type)
-		if value_info:
-			if value_name is not None:
-				value_info['name'] = value_name
-			if value_unit is not None:
-				value_info['unit'] = value_unit
-		return self
-
-	def get_value_info(self, array_type):
-		"""Get the value info dictionary for the specified array type"""
-		if array_type == 'activity':
-			return self.activity_value_info
-		elif array_type == 'stimulus':
-			return self.stimulus_value_info
-		elif array_type == 'receptive_field':
-			return self.receptive_field_value_info
-		return None
