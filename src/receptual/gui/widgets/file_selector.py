@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import (
 	QFileDialog,
 	QStyle,
 	QSizePolicy,
-	QSpinBox,  # Add this import
+	QSpinBox,
 )
 from PyQt6.QtCore import pyqtSignal, Qt
 
@@ -23,12 +23,14 @@ class FileSelector(QWidget):
 		reset_clicked: Signal emitted when the reset button is clicked
 		data_changed: Signal emitted when the array data changes (selected, reset, or computed)
 		kernel_size_changed: Signal emitted when the kernel size changes
+		compute_clicked: Signal emitted when the compute button is clicked
 	"""
 
 	file_selected = pyqtSignal(str)
 	reset_clicked = pyqtSignal()
-	data_changed = pyqtSignal()  # New signal for data changes
-	kernel_size_changed = pyqtSignal(int)  # Add new signal for kernel size changes
+	data_changed = pyqtSignal()
+	kernel_size_changed = pyqtSignal(int)
+	compute_clicked = pyqtSignal()  # New signal for compute button clicks
 
 	def __init__(self, array_manager, parent=None):
 		super().__init__(parent)
@@ -68,12 +70,21 @@ class FileSelector(QWidget):
 		kernel_layout = QHBoxLayout(self.kernel_widget)
 		kernel_layout.setContentsMargins(0, 0, 0, 0)
 
-		kernel_label = QLabel('Kernel:')
+		kernel_label = QLabel('Kernel Size:')
 		kernel_layout.addWidget(kernel_label)
 
 		self.kernel_spin = QSpinBox()
 		self.kernel_spin.setRange(1, 100)  # Set appropriate range
-		self.kernel_spin.setValue(10)  # Default value
+
+		# Get default kernel size from data manager if available
+		default_kernel_size = 10  # Fallback default
+		if (
+			hasattr(self.array_manager, 'kernel_size')
+			and self.array_manager.kernel_size is not None
+		):
+			default_kernel_size = self.array_manager.kernel_size
+
+		self.kernel_spin.setValue(default_kernel_size)
 		self.kernel_spin.valueChanged.connect(self.on_kernel_size_changed)
 		kernel_layout.addWidget(self.kernel_spin)
 
@@ -82,21 +93,25 @@ class FileSelector(QWidget):
 
 		# Add the Select File button
 		self.select_button = QPushButton('Select File')
-		# Use folder icon if available
 		icon = self.style().standardIcon(QStyle.StandardPixmap.SP_DialogOpenButton)
 		self.select_button.setIcon(icon)
 		self.select_button.clicked.connect(self.select_file)
-		# Only enabled if the array_manager is available for selection
 		self.select_button.setEnabled(self.array_manager.available)
 		layout.addWidget(self.select_button)
 
+		# Add the Compute button (initially hidden)
+		self.compute_button = QPushButton('Compute')
+		compute_icon = self.style().standardIcon(QStyle.StandardPixmap.SP_ArrowRight)
+		self.compute_button.setIcon(compute_icon)
+		self.compute_button.clicked.connect(self.compute_data)
+		layout.addWidget(self.compute_button)
+		self.compute_button.setVisible(False)  # Hide initially
+
 		# Add the Reset button
 		self.reset_button = QPushButton('Reset')
-		# Use clear/delete icon if available
 		icon = self.style().standardIcon(QStyle.StandardPixmap.SP_DialogResetButton)
 		self.reset_button.setIcon(icon)
 		self.reset_button.clicked.connect(self.reset_data)
-		# Only enabled if data IS loaded
 		self.reset_button.setEnabled(self.array_manager.loaded)
 		layout.addWidget(self.reset_button)
 
@@ -146,12 +161,43 @@ class FileSelector(QWidget):
 				# Clear errors after displaying
 				self.array_manager.errors = []
 
+	def compute_data(self):
+		"""Compute the data using the array manager's compute method"""
+		if hasattr(self.array_manager, 'compute'):
+			try:
+				# If RF and kernel size widget is visible, use its value
+				if (
+					self.array_manager.name == 'Receptive Field'
+					and self.kernel_widget.isVisible()
+					and hasattr(self.array_manager, 'update_kernel_size')
+				):
+					self.array_manager.update_kernel_size(self.kernel_spin.value())
+
+				# Compute the data
+				self.array_manager.compute()
+
+				# Update buttons after computation
+				self.reset_button.setEnabled(True)
+
+				# Update label and signal data changed
+				self._update_label()
+				self.update_status()  # This will update widget visibility and button states
+				self.compute_clicked.emit()
+				self.data_changed.emit()
+			except Exception as e:
+				# Show error if computation fails
+				from PyQt6.QtWidgets import QMessageBox
+
+				QMessageBox.critical(
+					self, 'Computation Error', f'Error computing data: {str(e)}'
+				)
+
 	def reset_data(self):
 		"""Reset the data in the array manager"""
 		self.array_manager.reset_state()
 		self.name_label.setText(self.array_manager.name)
 		self.reset_button.setEnabled(False)
-		self.select_button.setEnabled(self.array_manager.available)
+		self._update_widget_visibility()  # Update buttons visibility
 		self.reset_clicked.emit()
 		self.data_changed.emit()  # emit data changed signal
 
@@ -163,23 +209,20 @@ class FileSelector(QWidget):
 
 	def on_kernel_size_changed(self, value):
 		"""Handle kernel size changes"""
-		if hasattr(self.array_manager, 'update_kernel_size'):
-			try:
-				# Use the manager's update_kernel_size method instead of direct property assignment
-				self.array_manager.update_kernel_size(value)
-				# Emit signals
-				self.kernel_size_changed.emit(value)
-				self.data_changed.emit()
-			except Exception as e:
-				# Show error if kernel size update fails
-				from PyQt6.QtWidgets import QMessageBox
+		# We don't update the array_manager here, but we need to ensure
+		# the widget's value can still be changed and remembered
 
-				QMessageBox.critical(
-					self, 'Kernel Size Error', f'Error updating kernel size: {str(e)}'
-				)
-				# Reset spin box to current kernel size
-				if hasattr(self.array_manager, 'kernel_size'):
-					self.kernel_spin.setValue(self.array_manager.kernel_size)
+		# No need to call update_kernel_size on the array manager
+		# (that will happen only when compute is clicked)
+
+		# Just update the UI status to show that compute is available
+		self.update_status()
+
+		# Still emit the signal for any components that need to be notified
+		# of spin box value changes
+		self.kernel_size_changed.emit(value)
+
+		# We don't call data_changed to avoid triggering recomputation
 
 	def _update_label(self):
 		"""Update the labels to show file information"""
@@ -197,11 +240,22 @@ class FileSelector(QWidget):
 		info_parts = []
 		if hasattr(self.array_manager, 'timestamps') and self.array_manager.timestamps:
 			info_parts.append(f'Timestamps: {self.array_manager.timestamps}')
+
+		# Only show kernel size in info if it's RF and NOT computable (already showing in widget)
+		is_rf = self.array_manager.name == 'Receptive Field'
+		is_computable = (
+			hasattr(self.array_manager, 'computable') and self.array_manager.computable
+		)
+
 		if (
 			hasattr(self.array_manager, 'kernel_size')
 			and self.array_manager.kernel_size
+			and (not is_rf or not is_computable)
 		):
-			info_parts.append(f'Kernel: {self.array_manager.kernel_size}')
+			info_parts.append(
+				f'Kernel Size: {self.array_manager.kernel_size}'
+			)  # Changed from 'Kernel:' to 'Kernel Size:'
+
 		if hasattr(self.array_manager, 'no_neurons') and self.array_manager.no_neurons:
 			info_parts.append(f'Neurons: {self.array_manager.no_neurons}')
 		if (
@@ -218,6 +272,28 @@ class FileSelector(QWidget):
 		self.select_button.setEnabled(self.array_manager.available)
 		self.reset_button.setEnabled(self.array_manager.loaded)
 
+		# Enable compute button if available and not already computed,
+		# or if kernel size has changed since last computation
+		if hasattr(self.array_manager, 'computable'):
+			is_computed = (
+				hasattr(self.array_manager, 'computed') and self.array_manager.computed
+			)
+
+			# Check if kernel size in widget differs from kernel size in manager
+			kernel_size_changed = False
+			if (
+				hasattr(self.array_manager, 'kernel_size')
+				and self.kernel_widget.isVisible()
+				and self.kernel_spin.value() != self.array_manager.kernel_size
+			):
+				kernel_size_changed = True
+
+			# Enable compute when computable and either not computed or kernel size changed
+			self.compute_button.setEnabled(
+				self.array_manager.computable
+				and (not is_computed or kernel_size_changed)
+			)
+
 		# Update label text
 		self._update_label()
 
@@ -230,17 +306,29 @@ class FileSelector(QWidget):
 		is_computed = (
 			hasattr(self.array_manager, 'computed') and self.array_manager.computed
 		)
+		is_computable = (
+			hasattr(self.array_manager, 'computable') and self.array_manager.computable
+		)
 
-		# Show kernel size widget for computed RF
-		if is_rf and is_computed:
+		# Show kernel size widget for RF that's either computed or computable
+		if is_rf and (is_computed or is_computable):
 			self.kernel_widget.setVisible(True)
-			self.select_button.setVisible(False)
-			# Set the current kernel size if available
+
+			# Only set the kernel_spin value when initializing or when array_manager
+			# value changes, not every time we update visibility
 			if (
 				hasattr(self.array_manager, 'kernel_size')
-				and self.array_manager.kernel_size
-			):
+				and not self.kernel_widget.isVisible()  # First time becoming visible
+				or (self.kernel_spin.value() == self.array_manager.kernel_size)
+			):  # Only sync if they match
 				self.kernel_spin.setValue(self.array_manager.kernel_size)
 		else:
 			self.kernel_widget.setVisible(False)
+
+		# Handle button visibility based on computability
+		if is_computable:
+			self.select_button.setVisible(False)
+			self.compute_button.setVisible(True)
+		else:
 			self.select_button.setVisible(True)
+			self.compute_button.setVisible(False)

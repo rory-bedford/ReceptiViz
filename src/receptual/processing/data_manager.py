@@ -49,6 +49,20 @@ class ReceptiveField:
 
 	This class manages loading, validating, and processing receptive field data,
 	as well as tracking relationships with activity and stimulus data.
+
+	Attributes:
+		- data: np.ndarray: The receptive field data.
+		- errors: list: List of error messages.
+		- name: str: Name of the receptive field.
+		- unit: str: Unit of the receptive field data.
+		- kernel_size: int: Size of the receptive field kernel.
+		- no_neurons: int: Number of neurons in the receptive field.
+		- spatial_dims: tuple: Spatial dimensions of the receptive field.
+		- computed: bool: Whether the receptive field has been computed.
+		- computable: bool: Whether the receptive field can be computed from loaded data.
+		- loaded: bool: Whether the receptive field data has been loaded.
+		- filepath: Path: Path to the receptive field data file.
+		- available: bool: Whether the receptive field data is available for plotting.
 	"""
 
 	def __init__(self, data_manager):
@@ -68,6 +82,7 @@ class ReceptiveField:
 		self.no_neurons: int = None
 		self.spatial_dims: tuple = None
 		self.computed: bool = False
+		self.computable: bool = False
 		self.loaded: bool = False
 		self.filepath: Path = None
 		self.available: bool = True
@@ -150,17 +165,7 @@ class ReceptiveField:
 			self.available = False
 			self.data_manager.activity.available = False
 			if self.data_manager.stimulus.loaded:
-				try:
-					computed_activity = receptual.encoder(
-						self.data_manager.stimulus.data, data
-					)
-					self.data_manager.activity.set_data(computed_activity)
-					self.data_manager.activity.computed = True
-				except Exception as e:
-					self.errors.append(f'Failed to compute activity: {str(e)}')
-					self.reset_state()
-					return False
-
+				self.data_manager.activity.computable = True
 			return True
 		else:
 			self.reset_state()
@@ -175,17 +180,37 @@ class ReceptiveField:
 		Raises:
 			ValueError: If kernel size is not positive.
 		"""
-		assert self.computed, (
-			'Kernel size can only be updated if receptive field is computed'
+		assert self.computable, (
+			'Kernel size can only be updated if receptive field is computable'
 		)
 		if kernel_size <= 0:
 			raise ValueError('Kernel size must be positive')
 		self.kernel_size = int(kernel_size)
-		self.data = receptual.receptive_field(
-			self.data_manager.stimulus.data,
-			self.data_manager.activity.data,
-			kernel_size=self.kernel_size,
-		)
+		self.compute()
+
+	def compute(self):
+		"""Compute receptive field using the activity and stimulus data.
+
+		Returns:
+			bool: True if computation was successful, False otherwise.
+		"""
+		assert (
+			self.data_manager.activity.loaded and self.data_manager.stimulus.loaded
+		), 'Need both activity and stimulus to be loaded.'
+
+		try:
+			computed_rf = receptual.receptive_field(
+				self.data_manager.stimulus.data,
+				self.data_manager.activity.data,
+				self.kernel_size,
+			)
+			self.set_data(computed_rf)
+			self.computed = True
+			return True
+		except Exception as e:
+			self.errors.append(f'Failed to compute receptive field: {str(e)}')
+			self.reset_state()
+			return False
 
 
 class Stimulus:
@@ -193,6 +218,18 @@ class Stimulus:
 
 	This class manages loading, validating, and processing stimulus data,
 	as well as tracking relationships with activity and receptive field data.
+
+	Attributes:
+		- data: np.ndarray: The stimulus data.
+		- errors: list: List of error messages.
+		- name: str: Name of the stimulus.
+		- unit: str: Unit of the stimulus data.
+		- timestamps: int: Number of time points in the stimulus data.
+		- spatial_dims: tuple: Spatial dimensions of the stimulus data.
+		- loaded: bool: Whether the stimulus data has been loaded.
+		- computed: bool: Whether the stimulus has been computed.
+		- filepath: Path: Path to the stimulus data file.
+		- available: bool: Whether the stimulus data is available
 	"""
 
 	def __init__(self, data_manager):
@@ -211,6 +248,7 @@ class Stimulus:
 		self.timestamps: int = None
 		self.spatial_dims: tuple = None
 		self.loaded: bool = False
+		self.computed: bool = False
 		self.filepath: Path = None
 		self.available: bool = True
 
@@ -300,29 +338,9 @@ class Stimulus:
 			self.filepath = Path(file_path)
 			self.available = False
 			if self.data_manager.activity.loaded:
-				try:
-					computed_receptive_field = receptual.receptive_field(
-						data,
-						self.data_manager.activity.data,
-						kernel_size=self.data_manager.receptive_field.kernel_size,
-					)
-					self.data_manager.receptive_field.set_data(computed_receptive_field)
-					self.data_manager.receptive_field.computed = True
-				except Exception as e:
-					self.errors.append(f'Failed to compute receptive field: {str(e)}')
-					self.reset_state()
-					return False
+				self.data_manager.receptive_field.computable = True
 			elif self.data_manager.receptive_field.loaded:
-				try:
-					computed_activity = receptual.encoder(
-						data, self.data_manager.receptive_field.data
-					)
-					self.data_manager.activity.set_data(computed_activity)
-					self.data_manager.activity.computed = True
-				except Exception as e:
-					self.errors.append(f'Failed to compute activity: {str(e)}')
-					self.reset_state()
-					return False
+				self.data_manager.activity.computable = True
 			return True
 		else:
 			self.reset_state()
@@ -334,6 +352,19 @@ class Activity:
 
 	This class manages loading, validating, and processing neural activity data,
 	as well as tracking relationships with stimulus and receptive field data.
+
+	Attributes:
+		- data: np.ndarray: The activity data.
+		- errors: list: List of error messages.
+		- name: str: Name of the activity.
+		- unit: str: Unit of the activity data.
+		- timestamps: int: Number of time points in the activity data.
+		- no_neurons: int: Number of neurons in the activity data.
+		- computed: bool: Whether the activity has been computed.
+		- computable: bool: Whether the activity can be computed from loaded data.
+		- loaded: bool: Whether the activity data has been loaded.
+		- filepath: Path: Path to the activity data file.
+		- available: bool: Whether the activity data is available
 	"""
 
 	def __init__(self, data_manager):
@@ -352,6 +383,7 @@ class Activity:
 		self.timestamps: int = None
 		self.no_neurons: int = None
 		self.computed: bool = False
+		self.computable: bool = False
 		self.loaded: bool = False
 		self.filepath: Path = None
 		self.available: bool = True
@@ -442,18 +474,31 @@ class Activity:
 			self.data_manager.receptive_field.available = False
 
 			if self.data_manager.stimulus.loaded:
-				try:
-					computed_receptive_field = receptual.receptive_field(
-						self.data_manager.stimulus.data, data
-					)
-					self.data_manager.receptive_field.set_data(computed_receptive_field)
-					self.data_manager.receptive_field.computed = True
-				except Exception as e:
-					self.errors.append(f'Failed to compute receptive field: {str(e)}')
-					self.reset_state()
-					return False
-
+				self.data_manager.receptive_field.computable = True
 			return True
 		else:
+			self.reset_state()
+			return False
+
+	def compute(self):
+		"""Compute activity using the receptive field and stimulus data.
+
+		Returns:
+			bool: True if computation was successful, False otherwise.
+		"""
+		assert (
+			self.data_manager.receptive_field.loaded
+			and self.data_manager.stimulus.loaded
+		), 'Need both receptive field and stimulus to be loaded.'
+
+		try:
+			computed_activity = receptual.encoder(
+				self.data_manager.stimulus.data, self.data_manager.receptive_field.data
+			)
+			self.set_data(computed_activity)
+			self.computed = True
+			return True
+		except Exception as e:
+			self.errors.append(f'Failed to compute activity: {str(e)}')
 			self.reset_state()
 			return False
