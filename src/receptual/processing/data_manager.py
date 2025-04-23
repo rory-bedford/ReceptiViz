@@ -1,4 +1,5 @@
 import numpy as np
+from pathlib import Path
 from receptual.processing.utils.data_utils import load_numpy_array
 import receptual
 
@@ -66,10 +67,15 @@ class ReceptiveField:
 		self.no_neurons: int = None
 		self.spatial_dims: tuple = None
 		self.computed: bool = False
-		self.valid: bool = False
+		self.loaded: bool = False
+		self.filepath: Path = None
+		self.available: bool = True
 
-		if self.data_manager.activity.computed:
-			self.data_manager.activity.reset_state()
+		if hasattr(self.data_manager, 'activity'):
+			if self.data_manager.activity.computed:
+				self.data_manager.activity.reset_state()
+			if not self.data_manager.activity.loaded:
+				self.data_manager.activity.available = True
 
 	def validate_data(self, file_path):
 		"""Validate receptive field data format and dimensions.
@@ -94,14 +100,14 @@ class ReceptiveField:
 			self.errors.append('Receptive field data must be a numpy array')
 			return None
 
-		if self.data_manager.activity.valid:
+		if self.data_manager.activity.loaded:
 			if data.shape[1] != self.data_manager.activity.no_neurons:
 				self.errors.append(
 					f'Receptive field neuron dimension ({data.shape[1]}) must match activity neuron count ({self.data_manager.activity.no_neurons})'
 				)
 				return None
 
-		if self.data_manager.stimulus.valid:
+		if self.data_manager.stimulus.loaded:
 			receptive_field_spatial_dims = data.shape[2:]
 
 			if receptive_field_spatial_dims != self.data_manager.stimulus.spatial_dims:
@@ -124,9 +130,11 @@ class ReceptiveField:
 		Returns:
 			bool: True if loading was successful, False otherwise.
 		"""
-		assert self.data_manager.activity is None, (
-			'Cannot set receptive field data when activity is already set'
-		)
+		if self.data_manager.activity.loaded:
+			self.errors.append(
+				'Cannot set receptive field data when activity is already set'
+			)
+			return False
 
 		data = self.validate_data(file_path)
 		if data is not None:
@@ -134,14 +142,20 @@ class ReceptiveField:
 			self.kernel_size = data.shape[0]
 			self.no_neurons = data.shape[1]
 			self.spatial_dims = data.shape[2:]
-			self.valid = True
-			if self.data_manager.stimulus.valid:
+			self.loaded = True
+			self.filepath = Path(file_path)
+			self.available = False
+			self.data_manager.activity.available = False
+			if self.data_manager.stimulus.loaded:
 				try:
-					computed_activity = receptual.encoder(self.stimulus, data)
+					computed_activity = receptual.encoder(
+						self.data_manager.stimulus.data, data
+					)
 					self.data_manager.activity.set_data(computed_activity)
 					self.data_manager.activity.computed = True
 				except Exception as e:
 					self.errors.append(f'Failed to compute activity: {str(e)}')
+					return False
 
 			return True
 		return False
@@ -169,11 +183,19 @@ class Stimulus:
 		self.unit: str = None
 		self.timestamps: int = None
 		self.spatial_dims: tuple = None
-		self.valid: bool = False
+		self.loaded: bool = False
+		self.filepath: Path = None
+		self.available: bool = True
 
-		if self.data_manager.activity.computed:
+		if (
+			hasattr(self.data_manager, 'activity')
+			and self.data_manager.activity.computed
+		):
 			self.data_manager.activity.reset_state()
-		if self.data_manager.receptive_field.computed:
+		if (
+			hasattr(self.data_manager, 'receptive_field')
+			and self.data_manager.receptive_field.computed
+		):
 			self.data_manager.receptive_field.reset_state()
 
 	def validate_data(self, file_path):
@@ -199,9 +221,9 @@ class Stimulus:
 			self.errors.append('Stimulus data must be a numpy array')
 			return None
 
-		if data.ndim < 2:
+		if data.ndim < 3:
 			self.errors.append(
-				f'Stimulus data must have at least 2 dimensions, got {data.ndim}D'
+				f'Stimulus data must have at least 3 dimensions, got {data.ndim}D'
 			)
 			return None
 
@@ -211,14 +233,14 @@ class Stimulus:
 			)
 			return None
 
-		if self.data_manager.activity.valid:
+		if self.data_manager.activity.loaded:
 			if data.shape[0] != self.data_manager.activity.timestamps:
 				self.errors.append(
 					f'Stimulus time points ({data.shape[0]}) must match activity time points ({self.data_manager.activity.timestamps})'
 				)
 				return None
 
-		if self.data_manager.receptive_field.valid:
+		if self.data_manager.receptive_field.loaded:
 			stim_spatial_dims = data.shape[1:]
 
 			if stim_spatial_dims != self.data_manager.receptive_field.spatial_dims:
@@ -247,21 +269,23 @@ class Stimulus:
 			self.data = data
 			self.spatial_dims = data.shape[1:]
 			self.timestamps = data.shape[0]
-			self.valid = True
-			if self.data_manager.activity.valid:
+			self.loaded = True
+			self.filepath = Path(file_path)
+			self.available = False
+			if self.data_manager.activity.loaded:
 				try:
 					computed_receptive_field = receptual.receptive_field(
-						self.data_manager.activity, data
+						self.data_manager.activity.data, data
 					)
 					self.data_manager.receptive_field.set_data(computed_receptive_field)
 					self.data_manager.receptive_field.computed = True
 				except Exception as e:
 					self.errors.append(f'Failed to compute receptive field: {str(e)}')
 					return False
-			elif self.data_manager.receptive_field.valid:
+			elif self.data_manager.receptive_field.loaded:
 				try:
 					computed_activity = receptual.encoder(
-						self.data_manager.receptive_field, data
+						self.data_manager.receptive_field.data, data
 					)
 					self.data_manager.activity.set_data(computed_activity)
 					self.data_manager.activity.computed = True
@@ -295,10 +319,15 @@ class Activity:
 		self.timestamps: int = None
 		self.no_neurons: int = None
 		self.computed: bool = False
-		self.valid: bool = False
+		self.loaded: bool = False
+		self.filepath: Path = None
+		self.available: bool = True
 
-		if self.data_manager.receptive_field.computed:
-			self.data_manager.receptive_field.reset_state()
+		if hasattr(self.data_manager, 'receptive_field'):
+			if self.data_manager.receptive_field.computed:
+				self.data_manager.receptive_field.reset_state()
+			if not self.data_manager.receptive_field.loaded:
+				self.data_manager.receptive_field.available = True
 
 	def validate_data(self, file_path):
 		"""Validate activity data format and dimensions.
@@ -335,14 +364,14 @@ class Activity:
 			)
 			return None
 
-		if self.data_manager.stimulus.valid:
+		if self.data_manager.stimulus.loaded:
 			if data.shape[0] != self.data_manager.stimulus.timestamps:
 				self.errors.append(
 					f'Activity time points ({data.shape[0]}) must match stimulus time points ({self.data_manager.stimulus.timestamps})'
 				)
 				return None
 
-		if self.data_manager.receptive_field.valid:
+		if self.data_manager.receptive_field.loaded:
 			if data.shape[1] != self.data_manager.receptive_field.no_neurons:
 				self.errors.append(
 					f'Activity neuron count ({data.shape[1]}) must match receptive field second dimension ({self.data_manager.receptive_field.no_neurons})'
@@ -363,18 +392,21 @@ class Activity:
 		Returns:
 			bool: True if loading was successful, False otherwise.
 		"""
-		assert self.data_manager.receptive_field is None, (
-			'Cannot set activity data when receptive field is already set'
-		)
+		if self.data_manager.stimulus.loaded:
+			self.errors.append('Cannot set activity data when stimulus is already set')
+			return False
 
 		data = self.validate_data(file_path)
 		if data is not None:
 			self.data = data
 			self.timestamps = data.shape[0]
 			self.no_neurons = data.shape[1]
-			self.valid = True
+			self.loaded = True
+			self.filepath = Path(file_path)
+			self.available = False
+			self.data_manager.receptive_field.available = False
 
-			if self.data_manager.stimulus.valid:
+			if self.data_manager.stimulus.loaded:
 				try:
 					computed_receptive_field = receptual.receptive_field(
 						self.data_manager.stimulus.data, data
@@ -383,6 +415,7 @@ class Activity:
 					self.data_manager.receptive_field.computed = True
 				except Exception as e:
 					self.errors.append(f'Failed to compute receptive field: {str(e)}')
+					return False
 
 			return True
 		return False
