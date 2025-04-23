@@ -4,6 +4,7 @@ from receptual.processing.utils.data_utils import load_numpy_array
 import receptual
 
 MIN_TIME_POINTS = 10
+DEFAULT_KERNEL_SIZE = 1
 
 
 class EncoderDataManager:
@@ -63,7 +64,7 @@ class ReceptiveField:
 		self.errors: list = []
 		self.name: str = 'Receptive Field'
 		self.unit: str = None
-		self.kernel_size: int = None
+		self.kernel_size: int = DEFAULT_KERNEL_SIZE
 		self.no_neurons: int = None
 		self.spatial_dims: tuple = None
 		self.computed: bool = False
@@ -76,6 +77,8 @@ class ReceptiveField:
 				self.data_manager.activity.reset_state()
 			if not self.data_manager.activity.loaded:
 				self.data_manager.activity.available = True
+			else:
+				self.available = False
 
 	def validate_data(self, file_path):
 		"""Validate receptive field data format and dimensions.
@@ -155,10 +158,34 @@ class ReceptiveField:
 					self.data_manager.activity.computed = True
 				except Exception as e:
 					self.errors.append(f'Failed to compute activity: {str(e)}')
+					self.reset_state()
 					return False
 
 			return True
-		return False
+		else:
+			self.reset_state()
+			return False
+
+	def update_kernel_size(self, kernel_size):
+		"""Update the kernel size for the receptive field.
+
+		Args:
+			kernel_size: New kernel size.
+
+		Raises:
+			ValueError: If kernel size is not positive.
+		"""
+		assert self.computed, (
+			'Kernel size can only be updated if receptive field is computed'
+		)
+		if kernel_size <= 0:
+			raise ValueError('Kernel size must be positive')
+		self.kernel_size = int(kernel_size)
+		self.data = receptual.receptive_field(
+			self.data_manager.stimulus.data,
+			self.data_manager.activity.data,
+			kernel_size=self.kernel_size,
+		)
 
 
 class Stimulus:
@@ -275,25 +302,31 @@ class Stimulus:
 			if self.data_manager.activity.loaded:
 				try:
 					computed_receptive_field = receptual.receptive_field(
-						self.data_manager.activity.data, data
+						data,
+						self.data_manager.activity.data,
+						kernel_size=self.data_manager.receptive_field.kernel_size,
 					)
 					self.data_manager.receptive_field.set_data(computed_receptive_field)
 					self.data_manager.receptive_field.computed = True
 				except Exception as e:
 					self.errors.append(f'Failed to compute receptive field: {str(e)}')
+					self.reset_state()
 					return False
 			elif self.data_manager.receptive_field.loaded:
 				try:
 					computed_activity = receptual.encoder(
-						self.data_manager.receptive_field.data, data
+						data, self.data_manager.receptive_field.data
 					)
 					self.data_manager.activity.set_data(computed_activity)
 					self.data_manager.activity.computed = True
 				except Exception as e:
 					self.errors.append(f'Failed to compute activity: {str(e)}')
+					self.reset_state()
 					return False
 			return True
-		return False
+		else:
+			self.reset_state()
+			return False
 
 
 class Activity:
@@ -328,6 +361,8 @@ class Activity:
 				self.data_manager.receptive_field.reset_state()
 			if not self.data_manager.receptive_field.loaded:
 				self.data_manager.receptive_field.available = True
+			else:
+				self.available = False
 
 	def validate_data(self, file_path):
 		"""Validate activity data format and dimensions.
@@ -415,7 +450,10 @@ class Activity:
 					self.data_manager.receptive_field.computed = True
 				except Exception as e:
 					self.errors.append(f'Failed to compute receptive field: {str(e)}')
+					self.reset_state()
 					return False
 
 			return True
-		return False
+		else:
+			self.reset_state()
+			return False

@@ -19,12 +19,12 @@ def generate_centre_surround() -> np.ndarray:
 		- The centre-surround stimulus is generated using two Gaussian functions.
 		- K: 1
 		- N: 1
-		- S: (100,100)
+		- S: (40,40)
 	"""
-	shape = (100, 100)
-	mean = (50, 50)
-	sigma1 = (15, 15)
-	sigma2 = (30, 30)
+	shape = (40, 40)
+	mean = (20, 20)
+	sigma1 = (6, 6)
+	sigma2 = (12, 12)
 
 	y, x = np.indices(shape)
 	centre_surround = np.exp(
@@ -49,13 +49,13 @@ def generate_on_off() -> np.ndarray:
 		- The on-off stimulus is generated using two Gaussian functions.
 		- K: 20
 		- N: 1
-		- S: (100,100)
+		- S: (40,40)
 	"""
-	shape = (100, 100)
-	mean1 = (75, 75)
-	mean2 = (25, 25)
-	sigma1 = (15, 15)
-	sigma2 = (15, 15)
+	shape = (40, 40)
+	mean1 = (30, 30)
+	mean2 = (10, 10)
+	sigma1 = (6, 6)
+	sigma2 = (6, 6)
 
 	y, x = np.indices(shape)
 	on_off = np.exp(-((x - mean1[0]) ** 2 + (y - mean1[1]) ** 2) / (2 * sigma1[0] ** 2))
@@ -82,12 +82,12 @@ def generate_gabor_filters() -> np.ndarray:
 		- The Gabor filters are generated using a Gaussian function and a cosine.
 		- K: 1
 		- N: 3
-		- S: (100,100)
+		- S: (40,40)
 	"""
-	shape = (100, 100)
-	mean = (50, 50)
-	sigma = (20, 20)
-	frequency = 10
+	shape = (40, 40)
+	mean = (20, 20)
+	sigma = (8, 8)
+	frequency = 4
 	theta1, theta2, theta3 = np.pi / 4, np.pi / 2, 3 * np.pi / 4
 
 	y, x = np.indices(shape)
@@ -125,12 +125,12 @@ def generate_moving_gaussian() -> np.ndarray:
 		- The moving Gaussian stimulus is generated using a Gaussian function.
 		- K: 30
 		- N: 1
-		- S: (100,100)
+		- S: (40,40)
 	"""
-	shape = (100, 100)
-	sigma = (20, 20)
+	shape = (40, 40)
+	sigma = (8, 8)
 	y, x = np.indices(shape)
-	moving_mean = range(35, 65)
+	moving_mean = range(14, 26)
 
 	stacked_gaussians = []
 	for mean in moving_mean:
@@ -155,7 +155,7 @@ def generate_test_data(output_dir: str, seed: int = 42):
 
 	# Make centre-surround data
 	receptive_field = generate_centre_surround()
-	stimulus = generate_white_stimulus((500, 100, 100))
+	stimulus = generate_white_stimulus((500, 40, 40))
 	activity = encoder(stimulus, receptive_field)
 	centre_surround_dir = base_dir / 'encoding' / 'centre_surround'
 	centre_surround_dir.mkdir(parents=True, exist_ok=True)
@@ -165,7 +165,7 @@ def generate_test_data(output_dir: str, seed: int = 42):
 
 	# Make on-off data
 	receptive_field = generate_on_off()
-	stimulus = generate_white_stimulus((500, 100, 100))
+	stimulus = generate_white_stimulus((500, 40, 40))
 	activity = encoder(stimulus, receptive_field)
 	on_off_dir = base_dir / 'encoding' / 'on_off'
 	on_off_dir.mkdir(parents=True, exist_ok=True)
@@ -175,7 +175,7 @@ def generate_test_data(output_dir: str, seed: int = 42):
 
 	# Make Gabor filters data
 	receptive_field = generate_gabor_filters()
-	stimulus = generate_white_stimulus((500, 100, 100))
+	stimulus = generate_white_stimulus((500, 40, 40))
 	activity = encoder(stimulus, receptive_field)
 	gabor_dir = base_dir / 'encoding' / 'gabor'
 	gabor_dir.mkdir(parents=True, exist_ok=True)
@@ -185,7 +185,7 @@ def generate_test_data(output_dir: str, seed: int = 42):
 
 	# Make moving Gaussian data
 	receptive_field = generate_moving_gaussian()
-	stimulus = generate_white_stimulus((500, 100, 100))
+	stimulus = generate_white_stimulus((500, 40, 40))
 	activity = encoder(stimulus, receptive_field)
 	moving_gaussian_dir = base_dir / 'encoding' / 'moving_gaussian'
 	moving_gaussian_dir.mkdir(parents=True, exist_ok=True)
