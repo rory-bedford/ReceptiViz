@@ -23,11 +23,11 @@ def generate_centre_surround() -> np.ndarray:
 	"""
 	shape = (40, 40)
 	mean = (20, 20)
-	sigma1 = (6, 6)
-	sigma2 = (12, 12)
+	sigma1 = (4, 4)
+	sigma2 = (8, 8)
 
 	y, x = np.indices(shape)
-	centre_surround = np.exp(
+	centre_surround = 1.5 * np.exp(
 		-((x - mean[0]) ** 2 + (y - mean[1]) ** 2) / (2 * sigma1[0] ** 2)
 	)
 	centre_surround -= np.exp(
@@ -64,52 +64,53 @@ def generate_on_off() -> np.ndarray:
 	)
 
 	t = np.indices((20,))
-	time_component = np.sin(t[0] / 20 * np.pi) * np.exp(-t[0] / 20)
+	time_component = np.sin(t[0] / 20 * 2 * np.pi) * np.exp(-t[0] / 20)
 
 	on_off = time_component[:, np.newaxis, np.newaxis] * on_off[np.newaxis, :, :]
 	on_off = on_off / np.max(np.abs(on_off))
-	on_off = on_off[np.newaxis, ...]
+	on_off = on_off[:, np.newaxis, ...]
 
 	return on_off
 
 
 def generate_gabor_filters() -> np.ndarray:
 	"""
-	Generate Gabor filters for three neurons.
+	Generate Gabor filters for ten neurons with different orientations.
+
 	Returns:
-		np.ndarray: The generated Gabor filters.
+		np.ndarray: The generated Gabor filters with shape (1, 10, 40, 40)
+					(kernel=1, neurons=10, height=40, width=40)
+
 	Notes:
-		- The Gabor filters are generated using a Gaussian function and a cosine.
-		- K: 1
-		- N: 3
-		- S: (40,40)
+		- Each Gabor filter has a different orientation (theta)
+		- The spatial frequency remains constant across filters
+		- Theta controls only the orientation, not the spatial frequency
 	"""
 	shape = (40, 40)
 	mean = (20, 20)
 	sigma = (8, 8)
-	frequency = 4
-	theta1, theta2, theta3 = np.pi / 4, np.pi / 2, 3 * np.pi / 4
+	frequency = 0.16  # Spatial frequency (cycles per pixel)
+	thetas = [i * np.pi / 10 for i in range(10)]  # Different orientations
 
 	y, x = np.indices(shape)
-	gabor1 = np.exp(
-		-((x - mean[0]) ** 2 + (y - mean[1]) ** 2) / (2 * sigma[0] ** 2)
-	) * np.cos(
-		2 * np.pi * frequency * (x - mean[0]) * np.cos(theta1)
-		+ (y - mean[1]) * np.sin(theta1)
-	)
-	gabor2 = np.exp(
-		-((x - mean[0]) ** 2 + (y - mean[1]) ** 2) / (2 * sigma[0] ** 2)
-	) * np.cos(
-		2 * np.pi * frequency * (x - mean[0]) * np.cos(theta2)
-		+ (y - mean[1]) * np.sin(theta2)
-	)
-	gabor3 = np.exp(
-		-((x - mean[0]) ** 2 + (y - mean[1]) ** 2) / (2 * sigma[0] ** 2)
-	) * np.cos(
-		2 * np.pi * frequency * (x - mean[0]) * np.cos(theta3)
-		+ (y - mean[1]) * np.sin(theta3)
-	)
-	gabor_filters = np.stack([gabor1, gabor2, gabor3], axis=0)
+	gabors = []
+
+	for theta in thetas:
+		# Create coordinate system rotated by theta
+		x_theta = (x - mean[0]) * np.cos(theta) + (y - mean[1]) * np.sin(theta)
+		y_theta = -(x - mean[0]) * np.sin(theta) + (y - mean[1]) * np.cos(theta)
+
+		# Gaussian envelope
+		gaussian = np.exp(-(x_theta**2 + y_theta**2) / (2 * sigma[0] ** 2))
+
+		# Cosine carrier - frequency only in x_theta direction
+		carrier = np.cos(2 * np.pi * frequency * x_theta)
+
+		# Complete Gabor filter
+		gabor = gaussian * carrier
+		gabors.append(gabor)
+
+	gabor_filters = np.stack(gabors, axis=0)
 	gabor_filters = gabor_filters / np.max(np.abs(gabor_filters))
 	gabor_filters = gabor_filters[np.newaxis, ...]
 
@@ -123,14 +124,14 @@ def generate_moving_gaussian() -> np.ndarray:
 		np.ndarray: The generated moving Gaussian stimulus.
 	Notes:
 		- The moving Gaussian stimulus is generated using a Gaussian function.
-		- K: 30
+		- K: 20
 		- N: 1
 		- S: (40,40)
 	"""
 	shape = (40, 40)
-	sigma = (8, 8)
+	sigma = (5, 5)
 	y, x = np.indices(shape)
-	moving_mean = range(14, 26)
+	moving_mean = np.linspace(5, 35, 20)
 
 	stacked_gaussians = []
 	for mean in moving_mean:
@@ -155,7 +156,7 @@ def generate_test_data(output_dir: str, seed: int = 42):
 
 	# Make centre-surround data
 	receptive_field = generate_centre_surround()
-	stimulus = generate_white_stimulus((500, 40, 40))
+	stimulus = generate_white_stimulus((10000, 40, 40))
 	activity = encoder(stimulus, receptive_field)
 	centre_surround_dir = base_dir / 'encoding' / 'centre_surround'
 	centre_surround_dir.mkdir(parents=True, exist_ok=True)
@@ -165,7 +166,7 @@ def generate_test_data(output_dir: str, seed: int = 42):
 
 	# Make on-off data
 	receptive_field = generate_on_off()
-	stimulus = generate_white_stimulus((500, 40, 40))
+	stimulus = generate_white_stimulus((10000, 40, 40))
 	activity = encoder(stimulus, receptive_field)
 	on_off_dir = base_dir / 'encoding' / 'on_off'
 	on_off_dir.mkdir(parents=True, exist_ok=True)
@@ -175,7 +176,7 @@ def generate_test_data(output_dir: str, seed: int = 42):
 
 	# Make Gabor filters data
 	receptive_field = generate_gabor_filters()
-	stimulus = generate_white_stimulus((500, 40, 40))
+	stimulus = generate_white_stimulus((10000, 40, 40))
 	activity = encoder(stimulus, receptive_field)
 	gabor_dir = base_dir / 'encoding' / 'gabor'
 	gabor_dir.mkdir(parents=True, exist_ok=True)
@@ -185,7 +186,7 @@ def generate_test_data(output_dir: str, seed: int = 42):
 
 	# Make moving Gaussian data
 	receptive_field = generate_moving_gaussian()
-	stimulus = generate_white_stimulus((500, 40, 40))
+	stimulus = generate_white_stimulus((10000, 40, 40))
 	activity = encoder(stimulus, receptive_field)
 	moving_gaussian_dir = base_dir / 'encoding' / 'moving_gaussian'
 	moving_gaussian_dir.mkdir(parents=True, exist_ok=True)
