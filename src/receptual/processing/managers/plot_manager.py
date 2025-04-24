@@ -45,8 +45,19 @@ class PlotManager:
 		# Fixed
 		self.shape = {i: (0, self.data.shape[i]) for i in range(self.ndim)}
 
-		# Dynamic
-		self.update_axes([0, 1])  # Default to first two axes
+		# Dynamic - change as user interacts with the widget
+		if self.name == 'Activity':
+			self.update_axes([0, 1])  # Default to first two axes
+		elif self.name == 'Stimulus':
+			if self.ndim >= 3:
+				self.update_axes([1, 2])
+			else:
+				self.update_axes([0, 1])
+		elif self.name == 'Receptive Field':
+			if self.ndim >= 4:
+				self.update_axes([2, 3])
+			else:
+				self.update_axes([0, 2])
 
 	def update_ranges(self, axis, min_val, max_val):
 		"""Update the range for a given axis."""
