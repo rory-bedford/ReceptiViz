@@ -67,9 +67,9 @@ class EncoderTab(QWidget):
 		self.stimulus_selector.file_selected.connect(self.update_ui_state)
 		self.rf_selector.file_selected.connect(self.update_ui_state)
 
-		self.activity_selector.reset_clicked.connect(self.update_ui_state)
-		self.stimulus_selector.reset_clicked.connect(self.update_ui_state)
-		self.rf_selector.reset_clicked.connect(self.update_ui_state)
+		self.activity_selector.reset_clicked.connect(self.on_activity_reset)
+		self.stimulus_selector.reset_clicked.connect(self.on_stimulus_reset)
+		self.rf_selector.reset_clicked.connect(self.on_rf_reset)
 
 		# Connect compute_clicked signals to update UI
 		self.activity_selector.compute_clicked.connect(self.update_ui_state)
@@ -205,6 +205,8 @@ class EncoderTab(QWidget):
 		self.range_selector_widget.set_plot_manager(plot_manager)
 		# Store the current plot manager for later use
 		self.current_plot_manager = plot_manager
+		# Store which data type is currently being plotted
+		self.current_plot_type = 'Activity'
 
 	def plot_stimulus(self):
 		"""Plot stimulus data"""
@@ -216,6 +218,8 @@ class EncoderTab(QWidget):
 		self.range_selector_widget.set_plot_manager(plot_manager)
 		# Store the current plot manager for later use
 		self.current_plot_manager = plot_manager
+		# Store which data type is currently being plotted
+		self.current_plot_type = 'Stimulus'
 
 	def plot_receptive_field(self):
 		"""Plot receptive field data"""
@@ -227,6 +231,8 @@ class EncoderTab(QWidget):
 		self.range_selector_widget.set_plot_manager(plot_manager)
 		# Store the current plot manager for later use
 		self.current_plot_manager = plot_manager
+		# Store which data type is currently being plotted
+		self.current_plot_type = 'Receptive Field'
 
 	def on_axes_selected(self, selected_axes):
 		"""Handle axis selection from the axis selector"""
@@ -246,3 +252,57 @@ class EncoderTab(QWidget):
 			# Here we would update the actual plot with the new plot_data
 			# This will be implemented later when we add plotting functionality
 			# For now, we can just ensure the plot_manager's axes are updated correctly
+
+	def on_activity_reset(self):
+		"""Handle reset of activity data"""
+		# Check if we need to clear current plot
+		if hasattr(self, 'current_plot_type') and self.current_plot_type == 'Activity':
+			self.clear_current_plot()
+
+		# Continue with normal UI update
+		self.update_ui_state()
+
+	def on_stimulus_reset(self):
+		"""Handle reset of stimulus data"""
+		# Check if we need to clear current plot
+		if hasattr(self, 'current_plot_type') and self.current_plot_type == 'Stimulus':
+			self.clear_current_plot()
+
+		# Continue with normal UI update
+		self.update_ui_state()
+
+	def on_rf_reset(self):
+		"""Handle reset of receptive field data"""
+		# Check if we need to clear current plot
+		if (
+			hasattr(self, 'current_plot_type')
+			and self.current_plot_type == 'Receptive Field'
+		):
+			self.clear_current_plot()
+
+		# Continue with normal UI update
+		self.update_ui_state()
+
+	def clear_current_plot(self):
+		"""Clear the current plot and associated selectors"""
+		# Clear the plot frame (replace with actual plot clearing when implemented)
+		# For now, we'll just reset the plot manager and selectors
+
+		# Clear the current plot manager
+		if hasattr(self, 'current_plot_manager'):
+			self.current_plot_manager = None
+
+		# Reset the axis selector
+		if hasattr(self, 'axis_selector'):
+			self.axis_selector.set_plot_manager(None)
+
+		# Reset the range selector
+		if hasattr(self, 'range_selector_widget'):
+			self.range_selector_widget.set_plot_manager(None)
+
+		# Clear the current plot type
+		if hasattr(self, 'current_plot_type'):
+			self.current_plot_type = None
+
+		# Later, we would add code to clear the actual plot here
+		print('Plot cleared due to data reset')

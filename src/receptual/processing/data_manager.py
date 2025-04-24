@@ -459,8 +459,10 @@ class Activity:
 		Returns:
 			bool: True if loading was successful, False otherwise.
 		"""
-		if self.data_manager.stimulus.loaded:
-			self.errors.append('Cannot set activity data when stimulus is already set')
+		if self.data_manager.receptive_field.loaded:
+			self.errors.append(
+				'Cannot set activity data when receptive field is already set'
+			)
 			return False
 
 		data = self.validate_data(file_path)
