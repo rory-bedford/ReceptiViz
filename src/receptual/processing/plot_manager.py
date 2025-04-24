@@ -51,7 +51,6 @@ class PlotManager:
 	def update_ranges(self, axis, min_val, max_val):
 		"""Update the range for a given axis."""
 		assert axis in self.selected_axes, f'Axis {axis} is not available.'
-		print(min_val, max_val)
 		assert min_val <= max_val, 'Minimum value must be less than maximum value.'
 		assert min_val >= self.shape[axis][0] and max_val <= self.shape[axis][1], (
 			'Range values must be within the data shape.'
@@ -70,13 +69,17 @@ class PlotManager:
 
 	def update_plot_data(self):
 		"""Update the array that gets plotted based on selected slices and ranges."""
+		transpose_order = self.selected_axes + self.slice_axes
+		plot_data = np.transpose(self.data, axes=transpose_order)
+		print(f'Transposed data shape: {plot_data.shape}')
 		slices = []
-		for axis in self.available_axes:
+		for axis in transpose_order:
 			if axis in self.selected_axes:
-				slices.append(slice(self.ranges[axis][0], self.ranges[axis][1]))
+				slices.append(slice(self.ranges[axis][0], self.ranges[axis][1] + 1))
 			elif axis in self.slice_axes:
 				slices.append(self.slices[axis])
-		self.plot_data = self.data[tuple(slices)]
+		self.plot_data = plot_data[tuple(slices)]
+		print(f'Plot data shape: {self.plot_data.shape}')
 
 	def update_axes(self, axes):
 		"""Update the selected axes and ranges based on the provided axes."""

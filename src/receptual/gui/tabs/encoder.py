@@ -244,10 +244,6 @@ class EncoderTab(QWidget):
 			self.range_selector_widget.update_widgets()
 
 			# For debugging
-			print(f'Selected axes: {selected_axes}')
-			print(
-				f'Plot data shape after selection: {self.current_plot_manager.plot_data.shape}'
-			)
 
 			# Here we would update the actual plot with the new plot_data
 			# This will be implemented later when we add plotting functionality

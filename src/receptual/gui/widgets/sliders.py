@@ -666,24 +666,42 @@ class RangeSelector(QWidget):
 		# Store the value label for later updates
 		self.value_labels[axis] = value_label
 
-		# Create slider
-		slider = RangeSlider(min_val, max_val, lower_val, upper_val)
+		# Check if there's actually a range to select (more than one value)
+		if min_val >= max_val:
+			# Only one possible value, use a simple centered label
+			fixed_text = QLabel(f'Fixed at {min_val}')
+			fixed_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
+			fixed_text.setStyleSheet(
+				'color: #999; font-style: italic;'
+			)  # Subtle, italicized text
 
-		# Connect slider to update function
-		slider.range_changed.connect(
-			lambda min_val, max_val, axis=axis: self.on_range_changed(
-				axis, min_val, max_val
+			# Add widgets to grid layout
+			self.range_layout.addWidget(
+				axis_widget, row, 0, 1, 1, Qt.AlignmentFlag.AlignTop
 			)
-		)
+			self.range_layout.addWidget(fixed_text, row, 1)
 
-		# Add widgets to grid layout
-		self.range_layout.addWidget(
-			axis_widget, row, 0, 1, 1, Qt.AlignmentFlag.AlignTop
-		)
-		self.range_layout.addWidget(slider, row, 1)
+			# Store the static label in place of the slider (we won't need to update it)
+			self.range_sliders[axis] = None
+		else:
+			# Normal case - create a slider
+			slider = RangeSlider(min_val, max_val, lower_val, upper_val)
 
-		# Store slider for future reference
-		self.range_sliders[axis] = slider
+			# Connect slider to update function
+			slider.range_changed.connect(
+				lambda min_val, max_val, axis=axis: self.on_range_changed(
+					axis, min_val, max_val
+				)
+			)
+
+			# Add widgets to grid layout
+			self.range_layout.addWidget(
+				axis_widget, row, 0, 1, 1, Qt.AlignmentFlag.AlignTop
+			)
+			self.range_layout.addWidget(slider, row, 1)
+
+			# Store slider for future reference
+			self.range_sliders[axis] = slider
 
 		return row + 1  # Return next row index
 
@@ -716,22 +734,44 @@ class RangeSelector(QWidget):
 		# Store the value label for later updates
 		self.value_labels[axis] = value_label
 
-		# Create selector
-		selector = SliceSelector(min_val, max_val, current_val)
+		# Check if there's actually a range to select (more than one value)
+		if min_val >= max_val:
+			# Only one possible value, use a simple centered label
+			fixed_text = QLabel(f'Fixed at {min_val}')
+			fixed_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
+			fixed_text.setStyleSheet(
+				'color: #999; font-style: italic;'
+			)  # Subtle, italicized text
 
-		# Connect to update function
-		selector.slice_changed.connect(
-			lambda value, axis=axis: self.on_slice_changed(axis, value)
-		)
+			# Add widgets to grid layout
+			self.range_layout.addWidget(
+				axis_widget, row, 0, 1, 1, Qt.AlignmentFlag.AlignTop
+			)
+			self.range_layout.addWidget(fixed_text, row, 1)
 
-		# Add to layout
-		self.range_layout.addWidget(
-			axis_widget, row, 0, 1, 1, Qt.AlignmentFlag.AlignTop
-		)
-		self.range_layout.addWidget(selector, row, 1)
+			# Store the static label in place of the slider (we won't need to update it)
+			self.slice_selectors[axis] = None
 
-		# Store for future reference
-		self.slice_selectors[axis] = selector
+			# Update the plot manager directly with this fixed value
+			if hasattr(self.plot_manager, 'update_slice'):
+				self.plot_manager.update_slice(axis, min_val)
+		else:
+			# Normal case - create a selector
+			selector = SliceSelector(min_val, max_val, current_val)
+
+			# Connect to update function
+			selector.slice_changed.connect(
+				lambda value, axis=axis: self.on_slice_changed(axis, value)
+			)
+
+			# Add to layout
+			self.range_layout.addWidget(
+				axis_widget, row, 0, 1, 1, Qt.AlignmentFlag.AlignTop
+			)
+			self.range_layout.addWidget(selector, row, 1)
+
+			# Store for future reference
+			self.slice_selectors[axis] = selector
 
 		return row + 1  # Return next row index
 
@@ -747,8 +787,6 @@ class RangeSelector(QWidget):
 			if axis in self.value_labels:
 				self.value_labels[axis].setText(f'Range: [{min_val}, {max_val}]')
 
-			print(f'Updated range for axis {axis}: ({min_val}, {max_val})')
-
 	def on_slice_changed(self, axis, value):
 		"""Handle changes to the slice selector"""
 		if not self.plot_manager:
@@ -760,5 +798,3 @@ class RangeSelector(QWidget):
 			# Update the value label
 			if axis in self.value_labels:
 				self.value_labels[axis].setText(f'Value: {value}')
-
-			print(f'Updated slice for axis {axis}: {value}')
