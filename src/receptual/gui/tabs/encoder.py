@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import (
 )
 from receptual.processing.data_manager import EncoderDataManager
 from receptual.gui.widgets.file_selector import FileSelector
-from receptual.gui.widgets.sliders import AxisSelector
+from receptual.gui.widgets.sliders import AxisSelector, RangeSelector
 from receptual.processing.plot_manager import PlotManager
 
 
@@ -28,6 +28,7 @@ class EncoderTab(QWidget):
 		plot_frame (QFrame): The main plotting area.
 		range_selector (QWidget): Widget for selecting plot ranges.
 		axis_selector (AxisSelector): Widget for selecting axes for plotting.
+		range_selector_widget (RangeSelector): Widget for selecting data ranges.
 		plot_activity_btn (QPushButton): Button to display activity plots.
 		plot_stimulus_btn (QPushButton): Button to display stimulus plots.
 		plot_rf_btn (QPushButton): Button to display receptive field plots.
@@ -103,14 +104,18 @@ class EncoderTab(QWidget):
 		)  # 1 = stretch factor to take available space
 
 		# ---- RANGE SELECTOR ----
-		# Replace the placeholder with the axis selector
+		# Range selector layout with renamed components in new order
 		range_selector_layout = QVBoxLayout()
+
+		# Create range selector widget (renamed from DataRangeSelector)
+		self.range_selector_widget = RangeSelector()
 
 		# Create axis selector widget
 		self.axis_selector = AxisSelector()
 		self.axis_selector.axis_selected.connect(self.on_axes_selected)
 
-		# Add to the range selector layout
+		# Add to the range selector layout (range selector first, then axis selector)
+		range_selector_layout.addWidget(self.range_selector_widget)
 		range_selector_layout.addWidget(self.axis_selector)
 
 		# Set range_selector_layout as the layout for range_selector
@@ -196,6 +201,8 @@ class EncoderTab(QWidget):
 		plot_manager = PlotManager(self.data_manager.activity)
 		# Update axis selector with the new plot manager
 		self.axis_selector.set_plot_manager(plot_manager)
+		# Update range selector with the new plot manager (renamed)
+		self.range_selector_widget.set_plot_manager(plot_manager)
 		# Store the current plot manager for later use
 		self.current_plot_manager = plot_manager
 
@@ -205,6 +212,8 @@ class EncoderTab(QWidget):
 		plot_manager = PlotManager(self.data_manager.stimulus)
 		# Update axis selector with the new plot manager
 		self.axis_selector.set_plot_manager(plot_manager)
+		# Update range selector with the new plot manager (renamed)
+		self.range_selector_widget.set_plot_manager(plot_manager)
 		# Store the current plot manager for later use
 		self.current_plot_manager = plot_manager
 
@@ -214,6 +223,8 @@ class EncoderTab(QWidget):
 		plot_manager = PlotManager(self.data_manager.receptive_field)
 		# Update axis selector with the new plot manager
 		self.axis_selector.set_plot_manager(plot_manager)
+		# Update range selector with the new plot manager (renamed)
+		self.range_selector_widget.set_plot_manager(plot_manager)
 		# Store the current plot manager for later use
 		self.current_plot_manager = plot_manager
 
@@ -222,6 +233,9 @@ class EncoderTab(QWidget):
 		if hasattr(self, 'current_plot_manager') and self.current_plot_manager:
 			# Update the plot manager with the selected axes
 			self.current_plot_manager.update_axes(selected_axes)
+
+			# Update the range selector to show sliders for the newly selected axes (renamed)
+			self.range_selector_widget.update_widgets()
 
 			# For debugging
 			print(f'Selected axes: {selected_axes}')
