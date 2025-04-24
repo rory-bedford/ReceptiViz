@@ -100,10 +100,23 @@ class Plot3DWidget(QWidget):
 		if self.plot_view is not None and self.plot_view.isVisible():
 			self.save_camera_position()
 
-		# Clear previous plot if exists
-		if self.grid_plot is not None:
-			self.plot_view.removeItem(self.grid_plot)
-			self.grid_plot = None
+		# Check if we need to clean up any existing plots
+		# We need special handling since there could be multiple items
+		# for neuron plots or a single grid_plot for surface plots
+
+		# Clear all items from the view to ensure clean start
+		if self.plot_view is not None:
+			# Make a copy of the items list since we'll be modifying it
+			items_to_remove = self.plot_view.items.copy()
+			for item in items_to_remove:
+				try:
+					self.plot_view.removeItem(item)
+				except Exception:
+					# Silently ignore errors during cleanup
+					pass
+
+		# Reset grid_plot
+		self.grid_plot = None
 
 		# Check if we have a valid plot manager with data
 		if self.plot_manager is None or not hasattr(self.plot_manager, 'plot_data'):
@@ -123,6 +136,19 @@ class Plot3DWidget(QWidget):
 				self.error_label.show()
 				return
 
+			# Check if one of the selected axes is 'Neurons'
+			neuron_axis = None
+			show_as_lines = False
+
+			if hasattr(self.plot_manager, 'selected_axes') and hasattr(
+				self.plot_manager, 'axis_names'
+			):
+				for axis_idx in self.plot_manager.selected_axes:
+					if self.plot_manager.axis_names.get(axis_idx, '') == 'Neuron':
+						neuron_axis = axis_idx
+						show_as_lines = True
+						break
+
 			# Check if the data has any dimension of size 1
 			has_single_dim = False
 			original_shape = data.shape
@@ -132,58 +158,186 @@ class Plot3DWidget(QWidget):
 			# Process the data for normalization
 			normalized_data = self._normalize_data(data)
 
-			# For single dimension data, we need a special approach
-			if has_single_dim:
-				if original_shape[0] == 1:  # Row vector
-					# Get the raw 1D data
-					y_values = data[0, :]
-					x_values = np.arange(len(y_values))
+			# Special case for neuron data or 1D data
+			if show_as_lines or has_single_dim:
+				if has_single_dim:
+					# Handle single dimension case as before
+					if original_shape[0] == 1:  # Row vector
+						# Get the raw 1D data
+						y_values = data[0, :]
+						x_values = np.arange(len(y_values))
 
-					# Create connected points for line plot
-					# For a line strip in PyQtGraph, we need to provide the consecutive points
-					points = np.empty((len(x_values), 3))
-					points[:, 0] = x_values  # X coordinate
-					points[:, 1] = np.zeros(len(x_values))  # Y coordinate (fixed at 0)
-					points[:, 2] = normalized_data[
-						0, :
-					]  # Z coordinate (normalized height)
+						# Create connected points for line plot
+						points = np.empty((len(x_values), 3))
+						points[:, 0] = x_values  # X coordinate
+						points[:, 1] = np.zeros(
+							len(x_values)
+						)  # Y coordinate (fixed at 0)
+						points[:, 2] = normalized_data[
+							0, :
+						]  # Z coordinate (normalized height)
 
-					# Create the line plot with the line_strip mode
-					self.grid_plot = gl.GLLinePlotItem(
-						pos=points,
-						color=(1, 1, 1, 1),  # White
-						width=4,  # Thicker line for better visibility
-						antialias=True,  # Smooth the line
-						mode='line_strip',  # Connect points in sequence
-					)
+						# Create the line plot with the line_strip mode
+						self.grid_plot = gl.GLLinePlotItem(
+							pos=points,
+							color=(1, 1, 1, 1),  # White
+							width=4,  # Thicker line for better visibility
+							antialias=True,  # Smooth the line
+							mode='line_strip',  # Connect points in sequence
+						)
 
-					# Center the plot
-					self.grid_plot.translate(-len(y_values) / 2, 0, 0)
+						# Center the plot
+						self.grid_plot.translate(-len(y_values) / 2, 0, 0)
 
-				elif original_shape[1] == 1:  # Column vector
-					# Get the raw 1D data
-					y_values = data[:, 0]
-					x_values = np.arange(len(y_values))
+					elif original_shape[1] == 1:  # Column vector
+						# Get the raw 1D data
+						y_values = data[:, 0]
+						x_values = np.arange(len(y_values))
 
-					# Create connected points for the line plot
-					points = np.empty((len(x_values), 3))
-					points[:, 0] = np.zeros(len(x_values))  # X coordinate (fixed at 0)
-					points[:, 1] = x_values  # Y coordinate
-					points[:, 2] = normalized_data[
-						:, 0
-					]  # Z coordinate (normalized height)
+						# Create connected points for the line plot
+						points = np.empty((len(x_values), 3))
+						points[:, 0] = np.zeros(
+							len(x_values)
+						)  # X coordinate (fixed at 0)
+						points[:, 1] = x_values  # Y coordinate
+						points[:, 2] = normalized_data[
+							:, 0
+						]  # Z coordinate (normalized height)
 
-					# Create the line plot with the line_strip mode
-					self.grid_plot = gl.GLLinePlotItem(
-						pos=points,
-						color=(1, 1, 1, 1),  # White
-						width=4,  # Thicker line for better visibility
-						antialias=True,  # Smooth the line
-						mode='line_strip',  # Connect points in sequence
-					)
+						# Create the line plot with the line_strip mode
+						self.grid_plot = gl.GLLinePlotItem(
+							pos=points,
+							color=(1, 1, 1, 1),  # White
+							width=4,  # Thicker line for better visibility
+							antialias=True,  # Smooth the line
+							mode='line_strip',  # Connect points in sequence
+						)
 
-					# Center the plot
-					self.grid_plot.translate(0, -len(y_values) / 2, 0)
+						# Center the plot
+						self.grid_plot.translate(0, -len(y_values) / 2, 0)
+
+				elif show_as_lines:
+					# We have neuron data that should be displayed as multiple line plots
+
+					# Determine which axis is the neuron axis (0 or 1)
+					neuron_index = self.plot_manager.selected_axes.index(neuron_axis)
+
+					# Create a group to hold all line plots
+					self.grid_plot = gl.GLViewWidget()
+
+					# Set background color to match main widget
+					self.grid_plot.setBackgroundColor((0, 0, 0, 0))  # Transparent
+
+					# Determine number of neurons and non-neuron dimension size
+					if neuron_index == 0:  # Neurons are along rows (first axis)
+						n_neurons = normalized_data.shape[0]
+						other_dim_size = normalized_data.shape[1]
+
+						# Create a line for each neuron
+						for i in range(n_neurons):
+							# Get data for this neuron
+							y_values = normalized_data[i, :]
+							x_values = np.arange(other_dim_size)
+
+							# Create points array for this neuron
+							points = np.empty((len(x_values), 3))
+							points[:, 0] = x_values  # X coordinate
+							points[:, 1] = (
+								i * 1.5
+							)  # Y coordinate offset by neuron index
+							points[:, 2] = y_values  # Z coordinate (normalized height)
+
+							# Create line plot for this neuron
+							line = gl.GLLinePlotItem(
+								pos=points,
+								color=(1, 1, 1, 1),  # White
+								width=2,  # Line width
+								antialias=True,  # Smooth line
+								mode='line_strip',  # Connect points in sequence
+							)
+
+							# Add to main view
+							self.plot_view.addItem(line)
+
+						# Set appropriate camera parameters for neuron plots
+						if not self.plot_view.isVisible() or None in [
+							self.last_distance,
+							self.last_elevation,
+							self.last_azimuth,
+						]:
+							self.plot_view.setCameraPosition(
+								distance=max(n_neurons, other_dim_size) * 2,
+								elevation=30,
+								azimuth=45,
+							)
+
+					else:  # Neurons are along columns (second axis)
+						n_neurons = normalized_data.shape[1]
+						other_dim_size = normalized_data.shape[0]
+
+						# Create a line for each neuron
+						for i in range(n_neurons):
+							# Get data for this neuron
+							y_values = normalized_data[:, i]
+							x_values = np.arange(other_dim_size)
+							x_values -= x_values[
+								len(x_values) // 2
+							]  # Center x values around 0
+
+							# Create points array for this neuron
+							points = np.empty((len(x_values), 3))
+							points[:, 0] = x_values  # X coordinate
+							points[:, 1] = i * 5  # Y coordinate offset by neuron index
+							points[:, 2] = y_values  # Z coordinate (normalized height)
+
+							# Create line plot for this neuron
+							line = gl.GLLinePlotItem(
+								pos=points,
+								color=(1, 1, 1, 1),  # White
+								width=2,  # Line width
+								antialias=True,  # Smooth line
+								mode='line_strip',  # Connect points in sequence
+							)
+
+							# Add to main view
+							self.plot_view.addItem(line)
+
+						# Set appropriate camera parameters for neuron plots
+						if not self.plot_view.isVisible() or None in [
+							self.last_distance,
+							self.last_elevation,
+							self.last_azimuth,
+						]:
+							self.plot_view.setCameraPosition(
+								distance=max(n_neurons, other_dim_size) * 2,
+								elevation=30,
+								azimuth=45,
+							)
+
+					# Restore saved camera position if available
+					if self.plot_view.isVisible() and None not in [
+						self.last_distance,
+						self.last_elevation,
+						self.last_azimuth,
+					]:
+						try:
+							self.plot_view.setCameraPosition(
+								distance=self.last_distance,
+								elevation=self.last_elevation,
+								azimuth=self.last_azimuth,
+								pos=self.last_center,
+							)
+						except Exception:
+							# Silent error handling
+							self.plot_view.setCameraPosition(
+								distance=self.last_distance,
+								elevation=self.last_elevation,
+								azimuth=self.last_azimuth,
+							)
+
+					# Show the plot view and hide the error
+					self.plot_view.show()
+					self.error_label.hide()
 
 			else:
 				# Normal 2D surface plot for regular data
@@ -200,39 +354,10 @@ class Plot3DWidget(QWidget):
 				data_x_size, data_y_size = normalized_data.shape
 				self.grid_plot.translate(-data_x_size / 2, -data_y_size / 2, 0)
 
-			# Add the plot to the view
-			self.plot_view.addItem(self.grid_plot)
+				# Add the plot to the view
+				self.plot_view.addItem(self.grid_plot)
 
-			# Set camera position based on data dimensions
-			if has_single_dim:
-				if original_shape[0] == 1:  # Row vector
-					data_size = original_shape[1]
-					# For row vectors, position camera along Y axis looking at X axis
-					if not self.plot_view.isVisible() or None in [
-						self.last_distance,
-						self.last_elevation,
-						self.last_azimuth,
-					]:
-						self.plot_view.setCameraPosition(
-							distance=data_size * 1.5,
-							elevation=20,  # Lower elevation to see 1D data clearly
-							azimuth=90,  # Look along the X axis
-						)
-				elif original_shape[1] == 1:  # Column vector
-					data_size = original_shape[0]
-					# For column vectors, position camera along X axis looking at Y axis
-					if not self.plot_view.isVisible() or None in [
-						self.last_distance,
-						self.last_elevation,
-						self.last_azimuth,
-					]:
-						self.plot_view.setCameraPosition(
-							distance=data_size * 1.5,
-							elevation=20,  # Lower elevation to see 1D data clearly
-							azimuth=0,  # Look along the Y axis
-						)
-			else:
-				# Regular 2D case - use standard camera positioning
+				# Set camera position based on data dimensions
 				if not self.plot_view.isVisible() or None in [
 					self.last_distance,
 					self.last_elevation,
@@ -243,30 +368,30 @@ class Plot3DWidget(QWidget):
 						distance=data_size * 1.5, elevation=30, azimuth=45
 					)
 
-			# Restore saved camera position if available
-			if self.plot_view.isVisible() and None not in [
-				self.last_distance,
-				self.last_elevation,
-				self.last_azimuth,
-			]:
-				try:
-					self.plot_view.setCameraPosition(
-						distance=self.last_distance,
-						elevation=self.last_elevation,
-						azimuth=self.last_azimuth,
-						pos=self.last_center,
-					)
-				except Exception:
-					# Silent error handling
-					self.plot_view.setCameraPosition(
-						distance=self.last_distance,
-						elevation=self.last_elevation,
-						azimuth=self.last_azimuth,
-					)
+				# Restore saved camera position if available
+				if self.plot_view.isVisible() and None not in [
+					self.last_distance,
+					self.last_elevation,
+					self.last_azimuth,
+				]:
+					try:
+						self.plot_view.setCameraPosition(
+							distance=self.last_distance,
+							elevation=self.last_elevation,
+							azimuth=self.last_azimuth,
+							pos=self.last_center,
+						)
+					except Exception:
+						# Silent error handling
+						self.plot_view.setCameraPosition(
+							distance=self.last_distance,
+							elevation=self.last_elevation,
+							azimuth=self.last_azimuth,
+						)
 
-			# Show the plot view and hide the error
-			self.plot_view.show()
-			self.error_label.hide()
+				# Show the plot view and hide the error
+				self.plot_view.show()
+				self.error_label.hide()
 
 		except Exception as e:
 			# If there's an error, show the error message in UI but don't print to console
