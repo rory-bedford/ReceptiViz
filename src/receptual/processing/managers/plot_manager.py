@@ -22,7 +22,7 @@ class PlotManager:
 		assert self.name in ['Receptive Field', 'Activity', 'Stimulus'], (
 			f"Invalid name: {self.name}. Must be one of ['Receptive Field', 'Activity', 'Stimulus']."
 		)
-		self.data: np.ndarray = manager.data
+		self.normalize_data(manager.data)
 		self.ndim: int = self.data.ndim
 		self.shape: tuple = self.data.shape
 
@@ -98,3 +98,24 @@ class PlotManager:
 		self.ranges = {i: [0, self.data.shape[i] - 1] for i in self.selected_axes}
 		self.slices = {i: 0 for i in self.slice_axes}
 		self.update_plot_data()
+
+	def normalize_data(self, data):
+		"""Normalize new data, assign it, and update the plot data."""
+
+		# Replace invalid values
+		if np.isnan(data).any() or np.isinf(data).any():
+			data[np.isnan(data)] = 0
+			data[np.isinf(data)] = 0
+
+		# Normalize to range 0-1
+		min_val = np.min(data)
+		max_val = np.max(data)
+		if min_val != max_val:
+			data = (data - min_val) / (max_val - min_val)
+
+		# Scale to reasonable height for 3D view
+		data = data * 15
+
+		self.data = data
+		self.ndim = self.data.ndim
+		self.shape = self.data.shape

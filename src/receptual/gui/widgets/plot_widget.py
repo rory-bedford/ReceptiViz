@@ -155,8 +155,8 @@ class Plot3DWidget(QWidget):
 			if len(data.shape) == 2 and 1 in data.shape:
 				has_single_dim = True
 
-			# Process the data for normalization
-			normalized_data = self._normalize_data(data)
+			# Process the data - no normalization needed since it's been done in the plot processor
+			normalized_data = data  # Direct use - data is already normalized
 
 			# Special case for neuron data or 1D data
 			if show_as_lines or has_single_dim:
@@ -398,50 +398,3 @@ class Plot3DWidget(QWidget):
 			self.plot_view.hide()
 			self.error_label.setText(f'Error plotting data: {str(e)}')
 			self.error_label.show()
-
-	def _normalize_data(self, data):
-		"""Normalize the data for better visualization"""
-		# Check if we have 2D data
-		if len(data.shape) != 2:
-			if len(data.shape) > 2:
-				# Take first slice of higher-dimensional data
-				data = data[:, :, 0]
-			else:
-				# Convert 1D to 2D - ensure proper reshaping for plotting
-				data = data.reshape(-1, 1)
-
-		# Handle edge case where one dimension is 1
-		if 1 in data.shape:
-			# Expand the dimension with length 1 to make it visible in 3D
-			if data.shape[0] == 1:
-				# Row vector: duplicate the single row to make a 2D grid
-				data = np.repeat(data, 3, axis=0)
-			elif data.shape[1] == 1:
-				# Column vector: duplicate the single column to make a 2D grid
-				data = np.repeat(data, 3, axis=1)
-
-		# Copy the data to avoid modifying the original
-		normalized = data.astype(np.float32).copy()
-
-		# Check if data has valid range
-		if np.isnan(normalized).any() or np.isinf(normalized).any():
-			# Replace invalid values
-			normalized[np.isnan(normalized)] = 0
-			normalized[np.isinf(normalized)] = 0
-
-		# If data has zero range, add a small offset
-		if np.min(normalized) == np.max(normalized):
-			normalized = normalized + np.linspace(0, 0.1, normalized.size).reshape(
-				normalized.shape
-			)
-
-		# Normalize to range 0-1
-		min_val = np.min(normalized)
-		max_val = np.max(normalized)
-		if min_val != max_val:
-			normalized = (normalized - min_val) / (max_val - min_val)
-
-		# Scale to reasonable height for 3D view
-		normalized = normalized * 10
-
-		return normalized
