@@ -1,0 +1,223 @@
+import numpy as np
+import pyqtgraph.opengl as gl
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel
+from PyQt6.QtCore import Qt
+
+
+class CustomGLViewWidget(gl.GLViewWidget):
+	"""Extended GLViewWidget that captures mouse events to save camera position"""
+
+	def __init__(self, parent=None):
+		super().__init__(parent)
+		self.parent_widget = parent
+
+	def mouseReleaseEvent(self, ev):
+		"""Override to capture mouse release events"""
+		# Call the parent class implementation first
+		super().mouseReleaseEvent(ev)
+
+		# Now notify our parent to save the camera position
+		if hasattr(self.parent_widget, 'save_camera_position'):
+			self.parent_widget.save_camera_position()
+
+
+class Plot3DWidget(QWidget):
+	"""A 3D plotting widget using PyQtGraph's OpenGL capabilities."""
+
+	def __init__(self, plot_manager=None, parent=None):
+		super().__init__(parent)
+		self.plot_manager = plot_manager
+
+		# Initialize OpenGL plot
+		self.plot_view = None
+		self.grid_plot = None
+		self.error_label = None
+
+		# Store camera parameters to maintain view during updates
+		self.last_distance = None
+		self.last_elevation = None
+		self.last_azimuth = None
+		self.last_center = None
+
+		self.init_ui()
+
+	def init_ui(self):
+		"""Initialize the UI components"""
+		# Create layout
+		layout = QVBoxLayout(self)
+		layout.setContentsMargins(0, 0, 0, 0)
+
+		# Create error label (hidden by default)
+		self.error_label = QLabel('No data to plot')
+		self.error_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+		self.error_label.setStyleSheet(
+			'color: white; background-color: black; padding: 20px;'
+		)
+		layout.addWidget(self.error_label)
+
+		# Create the custom OpenGL view widget that passes mouse events
+		self.plot_view = CustomGLViewWidget(self)
+		self.plot_view.setBackgroundColor('k')  # Black background
+		self.plot_view.setCameraPosition(distance=40, elevation=30, azimuth=45)
+		layout.addWidget(self.plot_view)
+
+		# Set default camera parameters
+		self.last_distance = 40
+		self.last_elevation = 30
+		self.last_azimuth = 45
+		self.last_center = [0, 0, 0]
+
+		# Hide the view initially until we have data
+		self.plot_view.hide()
+		self.error_label.show()
+
+		# Update the widget with initial data
+		self.update_plot()
+
+	def save_camera_position(self):
+		"""Save the current camera position parameters"""
+		try:
+			# Get the current camera state
+			opts = self.plot_view.opts
+
+			# Save the parameters
+			self.last_distance = opts['distance']
+			self.last_elevation = opts['elevation']
+			self.last_azimuth = opts['azimuth']
+			self.last_center = opts['center']
+		except Exception:
+			# Silent error handling - no print statements
+			pass
+
+	def set_plot_manager(self, plot_manager):
+		"""Set the plot manager and update the plot"""
+		self.plot_manager = plot_manager
+		self.update_plot()
+
+	def update_plot(self):
+		"""Update the plot with current data from the plot manager"""
+		# Save current camera position before updating
+		if self.plot_view is not None and self.plot_view.isVisible():
+			self.save_camera_position()
+
+		# Clear previous plot if exists
+		if self.grid_plot is not None:
+			self.plot_view.removeItem(self.grid_plot)
+			self.grid_plot = None
+
+		# Check if we have a valid plot manager with data
+		if self.plot_manager is None or not hasattr(self.plot_manager, 'plot_data'):
+			self.plot_view.hide()
+			self.error_label.setText('No data to plot')
+			self.error_label.show()
+			return
+
+		try:
+			# Get the data
+			data = self.plot_manager.plot_data
+
+			# Check data shape and validity
+			if data is None or data.size == 0:
+				self.plot_view.hide()
+				self.error_label.setText('No data to plot')
+				self.error_label.show()
+				return
+
+			# Process the data
+			normalized_data = self._normalize_data(data)
+
+			# Create the surface plot (white grid/wireframe)
+			self.grid_plot = gl.GLSurfacePlotItem(
+				z=normalized_data,
+				shader='shaded',
+				color=(1, 1, 1, 1),  # White color
+				drawEdges=True,  # Draw edges to create grid effect
+				drawFaces=False,  # Don't draw faces to keep it wireframe
+				glOptions='opaque',
+			)
+
+			# Center the plot at the origin
+			data_x_size, data_y_size = normalized_data.shape
+			self.grid_plot.translate(-data_x_size / 2, -data_y_size / 2, 0)
+
+			# Add the plot to the view
+			self.plot_view.addItem(self.grid_plot)
+
+			# Only set default camera position if this is the first time showing the plot
+			# or if we don't have saved camera parameters
+			if not self.plot_view.isVisible() or None in [
+				self.last_distance,
+				self.last_elevation,
+				self.last_azimuth,
+			]:
+				# Set default camera position for new plots
+				self.plot_view.setCameraPosition(
+					distance=max(data_x_size, data_y_size) * 1.5,
+					elevation=30,
+					azimuth=45,
+				)
+			else:
+				# Restore the previous camera position - fix parameter name
+				try:
+					# First, try to set all parameters including center
+					self.plot_view.setCameraPosition(
+						distance=self.last_distance,
+						elevation=self.last_elevation,
+						azimuth=self.last_azimuth,
+						pos=self.last_center,
+					)
+				except Exception:
+					# Silent error handling - no print statements
+					# Fall back to just setting the basic parameters
+					self.plot_view.setCameraPosition(
+						distance=self.last_distance,
+						elevation=self.last_elevation,
+						azimuth=self.last_azimuth,
+					)
+
+			# Show the plot view and hide the error
+			self.plot_view.show()
+			self.error_label.hide()
+
+		except Exception as e:
+			# If there's an error, show the error message in UI but don't print to console
+			self.plot_view.hide()
+			self.error_label.setText(f'Error plotting data: {str(e)}')
+			self.error_label.show()
+
+	def _normalize_data(self, data):
+		"""Normalize the data for better visualization"""
+		# Check if we have 2D data
+		if len(data.shape) != 2:
+			if len(data.shape) > 2:
+				# Take first slice of higher-dimensional data
+				data = data[:, :, 0]
+			else:
+				# Convert 1D to 2D
+				data = data.reshape(-1, 1)
+
+		# Copy the data to avoid modifying the original
+		normalized = data.astype(np.float32).copy()
+
+		# Check if data has valid range
+		if np.isnan(normalized).any() or np.isinf(normalized).any():
+			# Replace invalid values
+			normalized[np.isnan(normalized)] = 0
+			normalized[np.isinf(normalized)] = 0
+
+		# If data has zero range, add a small offset
+		if np.min(normalized) == np.max(normalized):
+			normalized = normalized + np.linspace(0, 0.1, normalized.size).reshape(
+				normalized.shape
+			)
+
+		# Normalize to range 0-1
+		min_val = np.min(normalized)
+		max_val = np.max(normalized)
+		if min_val != max_val:
+			normalized = (normalized - min_val) / (max_val - min_val)
+
+		# Scale to reasonable height for 3D view
+		normalized = normalized * 10
+
+		return normalized

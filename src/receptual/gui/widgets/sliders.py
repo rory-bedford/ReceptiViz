@@ -579,6 +579,10 @@ class SliceSelector(QWidget):
 class RangeSelector(QWidget):
 	"""A widget for selecting data ranges and slices for plotting."""
 
+	# Add signals for plot updates
+	range_changed = pyqtSignal()  # Signal when any range value changes
+	slice_changed = pyqtSignal()  # Signal when any slice value changes
+
 	def __init__(self, plot_manager=None, parent=None):
 		super().__init__(parent)
 		self.plot_manager = plot_manager
@@ -787,6 +791,9 @@ class RangeSelector(QWidget):
 			if axis in self.value_labels:
 				self.value_labels[axis].setText(f'Range: [{min_val}, {max_val}]')
 
+			# Emit signal that a range has changed - for plot updating
+			self.range_changed.emit()
+
 	def on_slice_changed(self, axis, value):
 		"""Handle changes to the slice selector"""
 		if not self.plot_manager:
@@ -798,3 +805,6 @@ class RangeSelector(QWidget):
 			# Update the value label
 			if axis in self.value_labels:
 				self.value_labels[axis].setText(f'Value: {value}')
+
+			# Emit signal that a slice has changed - for plot updating
+			self.slice_changed.emit()

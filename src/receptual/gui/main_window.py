@@ -1,7 +1,7 @@
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTabWidget
 
 from receptual.gui.tabs.encoder import EncoderTab
-from receptual.processing.data_manager import EncoderDataManager
+from receptual.processing.managers.data_manager import EncoderDataManager
 
 
 class MainWindow(QWidget):

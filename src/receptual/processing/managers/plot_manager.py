@@ -71,7 +71,6 @@ class PlotManager:
 		"""Update the array that gets plotted based on selected slices and ranges."""
 		transpose_order = self.selected_axes + self.slice_axes
 		plot_data = np.transpose(self.data, axes=transpose_order)
-		print(f'Transposed data shape: {plot_data.shape}')
 		slices = []
 		for axis in transpose_order:
 			if axis in self.selected_axes:
@@ -79,7 +78,6 @@ class PlotManager:
 			elif axis in self.slice_axes:
 				slices.append(self.slices[axis])
 		self.plot_data = plot_data[tuple(slices)]
-		print(f'Plot data shape: {self.plot_data.shape}')
 
 	def update_axes(self, axes):
 		"""Update the selected axes and ranges based on the provided axes."""

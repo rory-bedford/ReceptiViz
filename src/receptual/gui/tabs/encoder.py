@@ -5,12 +5,12 @@ from PyQt6.QtWidgets import (
 	QFormLayout,
 	QPushButton,
 	QHBoxLayout,
-	QFrame,
 )
-from receptual.processing.data_manager import EncoderDataManager
+from receptual.processing.managers.data_manager import EncoderDataManager
 from receptual.gui.widgets.file_selector import FileSelector
 from receptual.gui.widgets.sliders import AxisSelector, RangeSelector
-from receptual.processing.plot_manager import PlotManager
+from receptual.processing.managers.plot_manager import PlotManager
+from receptual.gui.widgets.plot_widget import Plot3DWidget
 
 
 class EncoderTab(QWidget):
@@ -25,7 +25,7 @@ class EncoderTab(QWidget):
 		activity_selector (FileSelector): Widget for selecting activity data.
 		stimulus_selector (FileSelector): Widget for selecting stimulus data.
 		rf_selector (FileSelector): Widget for selecting receptive field data.
-		plot_frame (QFrame): The main plotting area.
+			plot_widget (Plot3DWidget): The main 3D plotting area.
 		range_selector (QWidget): Widget for selecting plot ranges.
 		axis_selector (AxisSelector): Widget for selecting axes for plotting.
 		range_selector_widget (RangeSelector): Widget for selecting data ranges.
@@ -90,17 +90,12 @@ class EncoderTab(QWidget):
 		main_layout.addWidget(data_group)
 
 		# ---- MIDDLE SECTION: PLOT AREA ----
-		# Create a frame to hold the plot (we'll replace this with actual plot later)
-		self.plot_frame = QFrame()
-		self.plot_frame.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Sunken)
-		self.plot_frame.setMinimumHeight(400)  # Set a minimum height
-		self.plot_frame.setStyleSheet(
-			'background-color: #f0f0f0;'
-		)  # Light gray background
+		# Create the 3D plot widget
+		self.plot_widget = Plot3DWidget()
 
-		# Add plot frame to main layout
+		# Add the plot widget to main layout
 		main_layout.addWidget(
-			self.plot_frame, 1
+			self.plot_widget, 1
 		)  # 1 = stretch factor to take available space
 
 		# ---- RANGE SELECTOR ----
@@ -109,6 +104,10 @@ class EncoderTab(QWidget):
 
 		# Create range selector widget (renamed from DataRangeSelector)
 		self.range_selector_widget = RangeSelector()
+
+		# Connect signals from range selector to update plot
+		self.range_selector_widget.range_changed.connect(self.update_plot)
+		self.range_selector_widget.slice_changed.connect(self.update_plot)
 
 		# Create axis selector widget
 		self.axis_selector = AxisSelector()
@@ -203,6 +202,8 @@ class EncoderTab(QWidget):
 		self.axis_selector.set_plot_manager(plot_manager)
 		# Update range selector with the new plot manager (renamed)
 		self.range_selector_widget.set_plot_manager(plot_manager)
+		# Update the 3D plot with the new plot manager
+		self.plot_widget.set_plot_manager(plot_manager)
 		# Store the current plot manager for later use
 		self.current_plot_manager = plot_manager
 		# Store which data type is currently being plotted
@@ -216,6 +217,8 @@ class EncoderTab(QWidget):
 		self.axis_selector.set_plot_manager(plot_manager)
 		# Update range selector with the new plot manager (renamed)
 		self.range_selector_widget.set_plot_manager(plot_manager)
+		# Update the 3D plot with the new plot manager
+		self.plot_widget.set_plot_manager(plot_manager)
 		# Store the current plot manager for later use
 		self.current_plot_manager = plot_manager
 		# Store which data type is currently being plotted
@@ -229,6 +232,8 @@ class EncoderTab(QWidget):
 		self.axis_selector.set_plot_manager(plot_manager)
 		# Update range selector with the new plot manager (renamed)
 		self.range_selector_widget.set_plot_manager(plot_manager)
+		# Update the 3D plot with the new plot manager
+		self.plot_widget.set_plot_manager(plot_manager)
 		# Store the current plot manager for later use
 		self.current_plot_manager = plot_manager
 		# Store which data type is currently being plotted
@@ -243,11 +248,8 @@ class EncoderTab(QWidget):
 			# Update the range selector to show sliders for the newly selected axes (renamed)
 			self.range_selector_widget.update_widgets()
 
-			# For debugging
-
-			# Here we would update the actual plot with the new plot_data
-			# This will be implemented later when we add plotting functionality
-			# For now, we can just ensure the plot_manager's axes are updated correctly
+			# Update the 3D plot
+			self.update_plot()
 
 	def on_activity_reset(self):
 		"""Handle reset of activity data"""
@@ -281,9 +283,6 @@ class EncoderTab(QWidget):
 
 	def clear_current_plot(self):
 		"""Clear the current plot and associated selectors"""
-		# Clear the plot frame (replace with actual plot clearing when implemented)
-		# For now, we'll just reset the plot manager and selectors
-
 		# Clear the current plot manager
 		if hasattr(self, 'current_plot_manager'):
 			self.current_plot_manager = None
@@ -296,9 +295,15 @@ class EncoderTab(QWidget):
 		if hasattr(self, 'range_selector_widget'):
 			self.range_selector_widget.set_plot_manager(None)
 
+		# Clear the 3D plot
+		if hasattr(self, 'plot_widget'):
+			self.plot_widget.set_plot_manager(None)
+
 		# Clear the current plot type
 		if hasattr(self, 'current_plot_type'):
 			self.current_plot_type = None
 
-		# Later, we would add code to clear the actual plot here
-		print('Plot cleared due to data reset')
+	def update_plot(self):
+		"""Update the 3D plot with current data"""
+		if hasattr(self, 'plot_widget') and self.plot_widget:
+			self.plot_widget.update_plot()
