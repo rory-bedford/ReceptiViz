@@ -123,43 +123,133 @@ class Plot3DWidget(QWidget):
 				self.error_label.show()
 				return
 
-			# Process the data
+			# Check if the data has any dimension of size 1
+			has_single_dim = False
+			original_shape = data.shape
+			if len(data.shape) == 2 and 1 in data.shape:
+				has_single_dim = True
+
+			# Process the data for normalization
 			normalized_data = self._normalize_data(data)
 
-			# Create the surface plot (white grid/wireframe)
-			self.grid_plot = gl.GLSurfacePlotItem(
-				z=normalized_data,
-				shader='shaded',
-				color=(1, 1, 1, 1),  # White color
-				drawEdges=True,  # Draw edges to create grid effect
-				drawFaces=False,  # Don't draw faces to keep it wireframe
-				glOptions='opaque',
-			)
+			# For single dimension data, we need a special approach
+			if has_single_dim:
+				if original_shape[0] == 1:  # Row vector
+					# Get the raw 1D data
+					y_values = data[0, :]
+					x_values = np.arange(len(y_values))
 
-			# Center the plot at the origin
-			data_x_size, data_y_size = normalized_data.shape
-			self.grid_plot.translate(-data_x_size / 2, -data_y_size / 2, 0)
+					# Create connected points for line plot
+					# For a line strip in PyQtGraph, we need to provide the consecutive points
+					points = np.empty((len(x_values), 3))
+					points[:, 0] = x_values  # X coordinate
+					points[:, 1] = np.zeros(len(x_values))  # Y coordinate (fixed at 0)
+					points[:, 2] = normalized_data[
+						0, :
+					]  # Z coordinate (normalized height)
+
+					# Create the line plot with the line_strip mode
+					self.grid_plot = gl.GLLinePlotItem(
+						pos=points,
+						color=(1, 1, 1, 1),  # White
+						width=4,  # Thicker line for better visibility
+						antialias=True,  # Smooth the line
+						mode='line_strip',  # Connect points in sequence
+					)
+
+					# Center the plot
+					self.grid_plot.translate(-len(y_values) / 2, 0, 0)
+
+				elif original_shape[1] == 1:  # Column vector
+					# Get the raw 1D data
+					y_values = data[:, 0]
+					x_values = np.arange(len(y_values))
+
+					# Create connected points for the line plot
+					points = np.empty((len(x_values), 3))
+					points[:, 0] = np.zeros(len(x_values))  # X coordinate (fixed at 0)
+					points[:, 1] = x_values  # Y coordinate
+					points[:, 2] = normalized_data[
+						:, 0
+					]  # Z coordinate (normalized height)
+
+					# Create the line plot with the line_strip mode
+					self.grid_plot = gl.GLLinePlotItem(
+						pos=points,
+						color=(1, 1, 1, 1),  # White
+						width=4,  # Thicker line for better visibility
+						antialias=True,  # Smooth the line
+						mode='line_strip',  # Connect points in sequence
+					)
+
+					# Center the plot
+					self.grid_plot.translate(0, -len(y_values) / 2, 0)
+
+			else:
+				# Normal 2D surface plot for regular data
+				self.grid_plot = gl.GLSurfacePlotItem(
+					z=normalized_data,
+					shader='shaded',
+					color=(1, 1, 1, 1),  # White color
+					drawEdges=True,  # Draw edges to create grid effect
+					drawFaces=False,  # Don't draw faces to keep it wireframe
+					glOptions='opaque',
+				)
+
+				# Center the plot at the origin
+				data_x_size, data_y_size = normalized_data.shape
+				self.grid_plot.translate(-data_x_size / 2, -data_y_size / 2, 0)
 
 			# Add the plot to the view
 			self.plot_view.addItem(self.grid_plot)
 
-			# Only set default camera position if this is the first time showing the plot
-			# or if we don't have saved camera parameters
-			if not self.plot_view.isVisible() or None in [
+			# Set camera position based on data dimensions
+			if has_single_dim:
+				if original_shape[0] == 1:  # Row vector
+					data_size = original_shape[1]
+					# For row vectors, position camera along Y axis looking at X axis
+					if not self.plot_view.isVisible() or None in [
+						self.last_distance,
+						self.last_elevation,
+						self.last_azimuth,
+					]:
+						self.plot_view.setCameraPosition(
+							distance=data_size * 1.5,
+							elevation=20,  # Lower elevation to see 1D data clearly
+							azimuth=90,  # Look along the X axis
+						)
+				elif original_shape[1] == 1:  # Column vector
+					data_size = original_shape[0]
+					# For column vectors, position camera along X axis looking at Y axis
+					if not self.plot_view.isVisible() or None in [
+						self.last_distance,
+						self.last_elevation,
+						self.last_azimuth,
+					]:
+						self.plot_view.setCameraPosition(
+							distance=data_size * 1.5,
+							elevation=20,  # Lower elevation to see 1D data clearly
+							azimuth=0,  # Look along the Y axis
+						)
+			else:
+				# Regular 2D case - use standard camera positioning
+				if not self.plot_view.isVisible() or None in [
+					self.last_distance,
+					self.last_elevation,
+					self.last_azimuth,
+				]:
+					data_size = max(normalized_data.shape[0], normalized_data.shape[1])
+					self.plot_view.setCameraPosition(
+						distance=data_size * 1.5, elevation=30, azimuth=45
+					)
+
+			# Restore saved camera position if available
+			if self.plot_view.isVisible() and None not in [
 				self.last_distance,
 				self.last_elevation,
 				self.last_azimuth,
 			]:
-				# Set default camera position for new plots
-				self.plot_view.setCameraPosition(
-					distance=max(data_x_size, data_y_size) * 1.5,
-					elevation=30,
-					azimuth=45,
-				)
-			else:
-				# Restore the previous camera position - fix parameter name
 				try:
-					# First, try to set all parameters including center
 					self.plot_view.setCameraPosition(
 						distance=self.last_distance,
 						elevation=self.last_elevation,
@@ -167,8 +257,7 @@ class Plot3DWidget(QWidget):
 						pos=self.last_center,
 					)
 				except Exception:
-					# Silent error handling - no print statements
-					# Fall back to just setting the basic parameters
+					# Silent error handling
 					self.plot_view.setCameraPosition(
 						distance=self.last_distance,
 						elevation=self.last_elevation,
@@ -193,8 +282,18 @@ class Plot3DWidget(QWidget):
 				# Take first slice of higher-dimensional data
 				data = data[:, :, 0]
 			else:
-				# Convert 1D to 2D
+				# Convert 1D to 2D - ensure proper reshaping for plotting
 				data = data.reshape(-1, 1)
+
+		# Handle edge case where one dimension is 1
+		if 1 in data.shape:
+			# Expand the dimension with length 1 to make it visible in 3D
+			if data.shape[0] == 1:
+				# Row vector: duplicate the single row to make a 2D grid
+				data = np.repeat(data, 3, axis=0)
+			elif data.shape[1] == 1:
+				# Column vector: duplicate the single column to make a 2D grid
+				data = np.repeat(data, 3, axis=1)
 
 		# Copy the data to avoid modifying the original
 		normalized = data.astype(np.float32).copy()
