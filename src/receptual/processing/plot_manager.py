@@ -4,14 +4,14 @@ import numpy as np
 class PlotManager:
 	"""A class to manage data for the plotting widget."""
 
-	def __init__(self, name, data):
-		self.name: str = name
+	def __init__(self, manager):
+		self.name: str = manager.name
 		assert self.name in ['Receptive Field', 'Activity', 'Stimulus'], (
 			f"Invalid name: {self.name}. Must be one of ['Receptive Field', 'Activity', 'Stimulus']."
 		)
-		self.data: np.ndarray = data
-		self.ndim: int = data.ndim
-		self.shape: tuple = data.shape
+		self.data: np.ndarray = manager.data
+		self.ndim: int = self.data.ndim
+		self.shape: tuple = self.data.shape
 
 		self.available_axes = [i for i in range(self.ndim)]
 
