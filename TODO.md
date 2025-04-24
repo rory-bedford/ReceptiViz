@@ -1,1 +1,4 @@
-* Alter compute logic to not be automatic but switch to a 'compute' button due to time lag.
+* Add computed file download button
+* Add download sample data button
+* Write docs
+* Update CONTRIBUTING and git actions to include development branch, and change repo settings so you can't push to main directly
