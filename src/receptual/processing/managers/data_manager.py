@@ -204,7 +204,10 @@ class ReceptiveField:
 				self.data_manager.activity.data,
 				self.kernel_size,
 			)
-			self.set_data(computed_rf)
+			self.data = computed_rf
+			self.kernel_size = self.data.shape[0]
+			self.no_neurons = self.data.shape[1]
+			self.spatial_dims = self.data.shape[2:]
 			self.computed = True
 			return True
 		except Exception as e:
@@ -497,7 +500,9 @@ class Activity:
 			computed_activity = receptual.encoder(
 				self.data_manager.stimulus.data, self.data_manager.receptive_field.data
 			)
-			self.set_data(computed_activity)
+			self.data = computed_activity
+			self.timestamps = self.data.shape[0]
+			self.no_neurons = self.data.shape[1]
 			self.computed = True
 			return True
 		except Exception as e:
