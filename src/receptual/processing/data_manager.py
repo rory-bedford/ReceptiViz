@@ -62,7 +62,7 @@ class ReceptiveField:
 		- computable: bool: Whether the receptive field can be computed from loaded data.
 		- loaded: bool: Whether the receptive field data has been loaded.
 		- filepath: Path: Path to the receptive field data file.
-		- available: bool: Whether the receptive field data is available for plotting.
+		- available: bool: Whether the receptive field data is available for loading.
 	"""
 
 	def __init__(self, data_manager):
@@ -229,7 +229,7 @@ class Stimulus:
 		- loaded: bool: Whether the stimulus data has been loaded.
 		- computed: bool: Whether the stimulus has been computed.
 		- filepath: Path: Path to the stimulus data file.
-		- available: bool: Whether the stimulus data is available
+		- available: bool: Whether the stimulus data is available for loading.
 	"""
 
 	def __init__(self, data_manager):
@@ -364,7 +364,7 @@ class Activity:
 		- computable: bool: Whether the activity can be computed from loaded data.
 		- loaded: bool: Whether the activity data has been loaded.
 		- filepath: Path: Path to the activity data file.
-		- available: bool: Whether the activity data is available
+		- available: bool: Whether the activity data is available for loading.
 	"""
 
 	def __init__(self, data_manager):
