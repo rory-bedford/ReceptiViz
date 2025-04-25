@@ -6,9 +6,12 @@ from PyQt6.QtWidgets import (
 	QFileDialog,
 	QStyle,
 	QSizePolicy,
-	QSpinBox,
+	QSpinBox,  # Add QInputDialog for save dialog
 )
 from PyQt6.QtCore import pyqtSignal, Qt
+from receptual.processing.utils.data_utils import (
+	save_numpy_array,
+)  # Import save utility
 
 
 class FileSelector(QWidget):
@@ -24,6 +27,7 @@ class FileSelector(QWidget):
 		data_changed: Signal emitted when the array data changes (selected, reset, or computed)
 		kernel_size_changed: Signal emitted when the kernel size changes
 		compute_clicked: Signal emitted when the compute button is clicked
+		save_clicked: Signal emitted when the save button is clicked
 	"""
 
 	file_selected = pyqtSignal(str)
@@ -31,6 +35,7 @@ class FileSelector(QWidget):
 	data_changed = pyqtSignal()
 	kernel_size_changed = pyqtSignal(int)
 	compute_clicked = pyqtSignal()  # New signal for compute button clicks
+	save_clicked = pyqtSignal(str)  # Emits the path where data was saved
 
 	def __init__(self, array_manager, parent=None):
 		super().__init__(parent)
@@ -106,6 +111,14 @@ class FileSelector(QWidget):
 		self.compute_button.clicked.connect(self.compute_data)
 		layout.addWidget(self.compute_button)
 		self.compute_button.setVisible(False)  # Hide initially
+
+		# Add the Save button (initially hidden)
+		self.save_button = QPushButton('Save')
+		save_icon = self.style().standardIcon(QStyle.StandardPixmap.SP_DialogSaveButton)
+		self.save_button.setIcon(save_icon)
+		self.save_button.clicked.connect(self.save_data)
+		layout.addWidget(self.save_button)
+		self.save_button.setVisible(False)  # Hide initially
 
 		# Add the Reset button
 		self.reset_button = QPushButton('Reset')
@@ -191,6 +204,45 @@ class FileSelector(QWidget):
 				QMessageBox.critical(
 					self, 'Computation Error', f'Error computing data: {str(e)}'
 				)
+
+	def save_data(self):
+		"""Save the computed data to a NumPy file"""
+		if not hasattr(self.array_manager, 'data') or self.array_manager.data is None:
+			return
+
+		try:
+			# Get a save location from the user
+			file_path, _ = QFileDialog.getSaveFileName(
+				self,
+				f'Save {self.array_manager.name} Data',
+				'',  # Start in default directory
+				'NumPy Files (*.npy)',
+			)
+
+			if file_path:
+				# Ensure the file has .npy extension
+				if not file_path.lower().endswith('.npy'):
+					file_path += '.npy'
+
+				# Save the data using the utility function
+				save_numpy_array(file_path, self.array_manager.data)
+
+				# Emit signal that data was saved
+				self.save_clicked.emit(file_path)
+
+				# Show a success message
+				from PyQt6.QtWidgets import QMessageBox
+
+				QMessageBox.information(
+					self,
+					'Save Successful',
+					f'{self.array_manager.name} data saved to:\n{file_path}',
+				)
+		except Exception as e:
+			# Show error message if save fails
+			from PyQt6.QtWidgets import QMessageBox
+
+			QMessageBox.critical(self, 'Save Error', f'Error saving data: {str(e)}')
 
 	def reset_data(self):
 		"""Reset the data in the array manager"""
@@ -294,6 +346,12 @@ class FileSelector(QWidget):
 				and (not is_computed or kernel_size_changed)
 			)
 
+		# Enable save button if data is computed
+		is_computed = (
+			hasattr(self.array_manager, 'computed') and self.array_manager.computed
+		)
+		self.save_button.setEnabled(is_computed)
+
 		# Update label text
 		self._update_label()
 
@@ -324,6 +382,9 @@ class FileSelector(QWidget):
 				self.kernel_spin.setValue(self.array_manager.kernel_size)
 		else:
 			self.kernel_widget.setVisible(False)
+
+		# Show the save button if data is computed
+		self.save_button.setVisible(is_computed)
 
 		# Handle button visibility based on computability
 		if is_computable:
