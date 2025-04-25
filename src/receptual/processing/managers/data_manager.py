@@ -1,13 +1,13 @@
 import numpy as np
 from pathlib import Path
-from receptual.processing.utils.data_utils import load_numpy_array
+from receptual.processing.utils.data_utils import load_numpy_array, save_numpy_array
 import receptual
 
 MIN_TIME_POINTS = 10
 DEFAULT_KERNEL_SIZE = 1
 
 
-class EncoderDataManager:
+class DataManager:
 	"""Handles loading, validating, and processing data for the encoder tab.
 
 	This class manages interactions between activity, stimulus and receptive field data,
@@ -170,6 +170,20 @@ class ReceptiveField:
 		else:
 			self.reset_state()
 			return False
+
+	def save_data(self, file_path):
+		"""Save receptive field data to file.
+
+		Args:
+			file_path: Path to the file where the data will be saved.
+
+		Raises:
+			ValueError: If receptive field data is not loaded.
+		"""
+		if not self.computed:
+			return False
+		save_numpy_array(file_path, self.data)
+		return True
 
 	def update_kernel_size(self, kernel_size):
 		"""Update the kernel size for the receptive field.
@@ -349,6 +363,20 @@ class Stimulus:
 			self.reset_state()
 			return False
 
+	def save_data(self, file_path):
+		"""Save stimulus data to file.
+
+		Args:
+			file_path: Path to the file where the data will be saved.
+
+		Raises:
+			ValueError: If stimulus data is not loaded.
+		"""
+		if not self.computed:
+			return False
+		save_numpy_array(file_path, self.data)
+		return True
+
 
 class Activity:
 	"""Class for handling activity data.
@@ -484,6 +512,20 @@ class Activity:
 		else:
 			self.reset_state()
 			return False
+
+	def save_data(self, file_path):
+		"""Save activity data to file.
+
+		Args:
+			file_path: Path to the file where the data will be saved.
+
+		Raises:
+			ValueError: If activity data is not loaded.
+		"""
+		if not self.computed:
+			return False
+		save_numpy_array(file_path, self.data)
+		return True
 
 	def compute(self):
 		"""Compute activity using the receptive field and stimulus data.

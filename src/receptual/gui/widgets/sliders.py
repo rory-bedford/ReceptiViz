@@ -13,80 +13,110 @@ from PyQt6.QtGui import QPainter, QColor, QBrush, QLinearGradient
 
 
 class AxisSelector(QWidget):
-	"""Widget for selecting two axes for plotting multi-dimensional data.
-
-	This widget allows users to select exactly two axes from a multi-dimensional
-	array for visualization on a 2D plot.
-
-	Attributes:
-		plot_manager: The PlotManager instance containing the data to plot
-		axis_selected: Signal emitted when axes are selected
-	"""
+	"""Widget for selecting two axes for plotting multi-dimensional data."""
 
 	axis_selected = pyqtSignal(list)  # Signal emits a list of selected axis indices
 
 	def __init__(self, plot_manager=None, parent=None):
 		super().__init__(parent)
 		self.plot_manager = plot_manager
-		self.init_ui()
+		self.main_layout = QVBoxLayout(self)
+		self.main_layout.setContentsMargins(0, 0, 0, 0)
+
+		# Create group box for axis selection - will be populated when plot_manager is set
+		self.axis_group = QGroupBox()
+		self.axis_layout = QVBoxLayout(self.axis_group)
+
+		# Add to main layout
+		self.main_layout.addWidget(self.axis_group)
+
+		# Set initial state based on plot_manager availability
+		if not plot_manager:
+			self.set_blank_state()
+		else:
+			self.init_ui()
+
+	def set_blank_state(self):
+		"""Set widget to completely blank state."""
+		# Hide the group box completely
+		self.axis_group.hide()
+
+		# Clear any previous UI elements
+		while self.axis_layout.count():
+			item = self.axis_layout.takeAt(0)
+			if item.widget():
+				item.widget().deleteLater()
 
 	def init_ui(self):
-		"""Initialize the UI components"""
-		main_layout = QVBoxLayout(self)
+		"""Initialize the UI components with actual controls."""
+		# Show the group box
+		self.axis_group.show()
+		self.axis_group.setTitle('Select Axes for Plotting')
 
-		# Create group box for axis selection
-		axis_group = QGroupBox('Select Axes for Plotting')
-		axis_layout = QVBoxLayout(axis_group)
+		# Clear any previous UI elements
+		while self.axis_layout.count():
+			item = self.axis_layout.takeAt(0)
+			if item.widget():
+				item.widget().deleteLater()
+
+			# Create a single horizontal layout for everything
+		main_controls_layout = QHBoxLayout()
+
+		# Create left-side layout for axis selection
+		axis_selection_layout = QHBoxLayout()
 
 		# Header label
-		header_label = QLabel('Select exactly two axes to plot:')
-		axis_layout.addWidget(header_label)
-
-		# Create combo boxes for axis selection
-		combo_layout = QHBoxLayout()
+		header_label = QLabel('Select axes:')
+		axis_selection_layout.addWidget(header_label)
 
 		# First axis combo
 		self.x_axis_label = QLabel('X-Axis:')
-		combo_layout.addWidget(self.x_axis_label)
+		axis_selection_layout.addWidget(self.x_axis_label)
 
 		self.x_axis_combo = QComboBox()
-		combo_layout.addWidget(self.x_axis_combo)
+		axis_selection_layout.addWidget(self.x_axis_combo)
 
 		# Second axis combo
 		self.y_axis_label = QLabel('Y-Axis:')
-		combo_layout.addWidget(self.y_axis_label)
+		axis_selection_layout.addWidget(self.y_axis_label)
 
 		self.y_axis_combo = QComboBox()
-		combo_layout.addWidget(self.y_axis_combo)
+		axis_selection_layout.addWidget(self.y_axis_combo)
 
-		axis_layout.addLayout(combo_layout)
+		# Add the axis selection layout to the main controls layout
+		main_controls_layout.addLayout(axis_selection_layout)
 
-		# Apply button
-		self.apply_button = QPushButton('Apply Axis Selection')
+		# Add spacer to push the apply button to the right
+		main_controls_layout.addStretch(1)
+
+		# Create Apply button
+		self.apply_button = QPushButton('Apply')
 		self.apply_button.clicked.connect(self.apply_axis_selection)
-		axis_layout.addWidget(self.apply_button)
+		self.apply_button.setFixedWidth(80)  # Set a fixed width for the button
+		main_controls_layout.addWidget(self.apply_button)
 
-		main_layout.addWidget(axis_group)
+		# Add the main controls layout to the axis layout
+		self.axis_layout.addLayout(main_controls_layout)
 
-		# Initialize with no plot manager
+		# Update with available options
 		self.update_axis_options()
 
 	def set_plot_manager(self, plot_manager):
 		"""Set or update the plot manager and refresh the UI"""
 		self.plot_manager = plot_manager
-		self.update_axis_options()
+		if plot_manager:
+			self.init_ui()
+		else:
+			self.set_blank_state()
 
 	def update_axis_options(self):
 		"""Update the combo boxes with available axes from the plot manager"""
+		if not hasattr(self, 'x_axis_combo') or not self.plot_manager:
+			return
+
 		# Clear existing items
 		self.x_axis_combo.clear()
 		self.y_axis_combo.clear()
-
-		if not self.plot_manager:
-			self.setEnabled(False)
-			return
-
-		self.setEnabled(True)
 
 		# Add available axes to combo boxes
 		for axis in self.plot_manager.available_axes:
@@ -589,27 +619,48 @@ class RangeSelector(QWidget):
 		self.range_sliders = {}  # Sliders for selected axes
 		self.slice_selectors = {}  # Sliders for non-selected axes
 		self.value_labels = {}  # Labels showing current values/ranges
-		self.init_ui()
 
-	def init_ui(self):
-		"""Initialize the UI components"""
 		# Main layout for the widget
 		self.main_layout = QVBoxLayout(self)
+		self.main_layout.setContentsMargins(0, 0, 0, 0)
 
 		# Create a group box for range selection
-		self.range_group = QGroupBox('Data Range Selection')
+		self.range_group = QGroupBox()
 		self.range_layout = QGridLayout(self.range_group)
 		self.range_layout.setColumnStretch(1, 1)  # Give the slider column stretch
 
 		self.main_layout.addWidget(self.range_group)
 
-		# Set initial state
+		# Set initial state based on plot_manager availability
+		if not plot_manager:
+			self.set_blank_state()
+		else:
+			self.init_ui()
+
+	def set_blank_state(self):
+		"""Set widget to completely blank state."""
+		# Hide the group box completely
+		self.range_group.hide()
+
+		# Clear any previous widgets from the layout
+		self.clear_widgets()
+
+	def init_ui(self):
+		"""Initialize the UI with range selectors and sliders."""
+		# Show group box and set title
+		self.range_group.show()
+		self.range_group.setTitle('Data Range Selection')
+
+		# Update widgets based on plot manager
 		self.update_widgets()
 
 	def set_plot_manager(self, plot_manager):
 		"""Set the plot manager and update the UI"""
 		self.plot_manager = plot_manager
-		self.update_widgets()
+		if plot_manager:
+			self.init_ui()
+		else:
+			self.set_blank_state()
 
 	def update_widgets(self):
 		"""Update all widgets based on the current plot manager state"""
@@ -617,16 +668,24 @@ class RangeSelector(QWidget):
 		self.clear_widgets()
 
 		if not self.plot_manager:
+			self.set_blank_state()
 			return
 
 		# Create range sliders for selected axes
 		row = 0
-		for axis in self.plot_manager.selected_axes:
-			row = self.create_range_slider(axis, row)
 
-		# Create slice selectors for non-selected axes
-		for axis in self.plot_manager.slice_axes:
-			row = self.create_slice_selector(axis, row)
+		# Check if there are selected axes
+		if (
+			hasattr(self.plot_manager, 'selected_axes')
+			and self.plot_manager.selected_axes
+		):
+			for axis in self.plot_manager.selected_axes:
+				row = self.create_range_slider(axis, row)
+
+		# Check if there are slice axes
+		if hasattr(self.plot_manager, 'slice_axes') and self.plot_manager.slice_axes:
+			for axis in self.plot_manager.slice_axes:
+				row = self.create_slice_selector(axis, row)
 
 	def clear_widgets(self):
 		"""Clear all widgets from the layout"""

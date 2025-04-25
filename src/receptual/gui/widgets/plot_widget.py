@@ -48,7 +48,7 @@ class Plot3DWidget(QWidget):
 		layout.setContentsMargins(0, 0, 0, 0)
 
 		# Create error label (hidden by default)
-		self.error_label = QLabel('No data to plot')
+		self.error_label = QLabel(' ')
 		self.error_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 		self.error_label.setStyleSheet(
 			'color: white; background-color: black; padding: 20px;'
@@ -96,6 +96,9 @@ class Plot3DWidget(QWidget):
 
 	def update_plot(self):
 		"""Update the plot with current data from the plot manager"""
+		if self.plot_manager is not None:
+			print('dad')
+			print(self.plot_manager.plot_data.shape)
 		# Save current camera position before updating
 		if self.plot_view is not None and self.plot_view.isVisible():
 			self.save_camera_position()
@@ -121,7 +124,7 @@ class Plot3DWidget(QWidget):
 		# Check if we have a valid plot manager with data
 		if self.plot_manager is None or not hasattr(self.plot_manager, 'plot_data'):
 			self.plot_view.hide()
-			self.error_label.setText('No data to plot')
+			self.error_label.setText(' ')
 			self.error_label.show()
 			return
 
@@ -132,7 +135,7 @@ class Plot3DWidget(QWidget):
 			# Check data shape and validity
 			if data is None or data.size == 0:
 				self.plot_view.hide()
-				self.error_label.setText('No data to plot')
+				self.error_label.setText(' ')
 				self.error_label.show()
 				return
 
@@ -398,3 +401,5 @@ class Plot3DWidget(QWidget):
 			self.plot_view.hide()
 			self.error_label.setText(f'Error plotting data: {str(e)}')
 			self.error_label.show()
+			# Raise the exception again for higher-level handling
+			raise
