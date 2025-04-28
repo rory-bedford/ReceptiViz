@@ -23,6 +23,7 @@ dependencies = [
 receptual = "receptual.app:main"
 generate-sample-data = "receptual.processing.utils.generate_sample_data:main"
 download-sample-data = "receptual.processing.utils.download_sample_data:main"
+generate-gif = "receptual.processing.utils.generate_gif:main"
 
 [tool.ruff]
 line-length = 88
@@ -80,6 +81,8 @@ default-groups = ["dev", "docs"]
 dev = [
     "hatch>=1.14.1",
     "hatch-vcs>=0.4.0",
+    "imageio>=2.37.0",
+    "pillow>=11.1.0",
     "pre-commit>=4.2.0",
     "pytest>=8.3.5",
     "pytest-cov>=6.1.1",
