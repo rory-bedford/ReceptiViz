@@ -165,12 +165,6 @@ class MainWindow(QMainWindow):
 		"""Update the current plot."""
 		if self.plot_manager:
 			try:
-				# Add debug print to check if this method is being called
-				print(f'Updating plot with plot_manager: {self.plot_manager}')
-				print(
-					f'Plot data shape: {self.plot_manager.plot_data.shape if hasattr(self.plot_manager, "plot_data") else "No plot data"}'
-				)
-
 				# First ensure the plot_manager has the latest data
 				self.plot_widget.set_plot_manager(self.plot_manager)
 
@@ -180,7 +174,6 @@ class MainWindow(QMainWindow):
 			except Exception as e:
 				from PyQt6.QtWidgets import QMessageBox
 
-				print(f'Error updating plot: {str(e)}')  # Debug print
 				QMessageBox.warning(
 					self,
 					'Plot Warning',

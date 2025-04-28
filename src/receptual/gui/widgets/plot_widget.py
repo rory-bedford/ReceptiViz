@@ -1,7 +1,7 @@
 import numpy as np
 import pyqtgraph.opengl as gl
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel
-from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QCheckBox, QHBoxLayout
+from PyQt6.QtCore import Qt, QTimer
 
 
 class CustomGLViewWidget(gl.GLViewWidget):
@@ -39,6 +39,12 @@ class Plot3DWidget(QWidget):
 		self.last_azimuth = None
 		self.last_center = None
 
+		# Rotation properties
+		self.rotation_timer = QTimer(self)
+		self.rotation_timer.timeout.connect(self.rotate_model)
+		self.rotation_speed = 1  # degrees per frame
+		self.is_rotating = False
+
 		self.init_ui()
 
 	def init_ui(self):
@@ -61,6 +67,18 @@ class Plot3DWidget(QWidget):
 		self.plot_view.setCameraPosition(distance=40, elevation=30, azimuth=45)
 		layout.addWidget(self.plot_view)
 
+		# Create controls layout
+		controls_layout = QHBoxLayout()
+
+		# Add rotation checkbox
+		self.rotation_checkbox = QCheckBox('Rotate')
+		self.rotation_checkbox.setChecked(False)
+		self.rotation_checkbox.toggled.connect(self.toggle_rotation)
+		controls_layout.addWidget(self.rotation_checkbox)
+
+		# Add the controls to the main layout
+		layout.addLayout(controls_layout)
+
 		# Set default camera parameters
 		self.last_distance = 40
 		self.last_elevation = 30
@@ -73,6 +91,29 @@ class Plot3DWidget(QWidget):
 
 		# Update the widget with initial data
 		self.update_plot()
+
+	def toggle_rotation(self, checked):
+		"""Toggle rotation animation on/off"""
+		self.is_rotating = checked
+		if checked:
+			# Start the rotation timer
+			self.rotation_timer.start(30)  # ~33 fps
+		else:
+			self.rotation_timer.stop()
+
+	def rotate_model(self):
+		"""Rotate the view around by adjusting the camera azimuth"""
+		if self.plot_view and self.plot_view.isVisible():
+			# Get current camera parameters
+			opts = self.plot_view.opts
+
+			# Update azimuth (horizontal rotation)
+			current_azimuth = opts['azimuth']
+			new_azimuth = (current_azimuth + self.rotation_speed) % 360
+
+			# Update the camera position with the new azimuth
+			# Note: this keeps all other camera parameters (distance, elevation, center) unchanged
+			self.plot_view.setCameraPosition(azimuth=new_azimuth)
 
 	def save_camera_position(self):
 		"""Save the current camera position parameters"""
@@ -96,16 +137,17 @@ class Plot3DWidget(QWidget):
 
 	def update_plot(self):
 		"""Update the plot with current data from the plot manager"""
-		if self.plot_manager is not None:
-			print('dad')
-			print(self.plot_manager.plot_data.shape)
+		# Save rotation state
+		was_rotating = self.is_rotating
+		if was_rotating:
+			self.toggle_rotation(False)
+
+			# Reset grid_plot
+		self.grid_plot = None
+
 		# Save current camera position before updating
 		if self.plot_view is not None and self.plot_view.isVisible():
 			self.save_camera_position()
-
-		# Check if we need to clean up any existing plots
-		# We need special handling since there could be multiple items
-		# for neuron plots or a single grid_plot for surface plots
 
 		# Clear all items from the view to ensure clean start
 		if self.plot_view is not None:
@@ -118,10 +160,7 @@ class Plot3DWidget(QWidget):
 					# Silently ignore errors during cleanup
 					pass
 
-		# Reset grid_plot
-		self.grid_plot = None
-
-		# Check if we have a valid plot manager with data
+			# Check if we have a valid plot manager with data
 		if self.plot_manager is None or not hasattr(self.plot_manager, 'plot_data'):
 			self.plot_view.hide()
 			self.error_label.setText(' ')
@@ -403,3 +442,7 @@ class Plot3DWidget(QWidget):
 			self.error_label.show()
 			# Raise the exception again for higher-level handling
 			raise
+
+		# Restart rotation if it was active before
+		if was_rotating:
+			self.toggle_rotation(True)
