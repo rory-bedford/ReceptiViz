@@ -345,6 +345,7 @@ class TestReceptiveField:
 		"""
 		# Define test inputs
 		stimulus = np.random.randn(20, 2, 3)
+		stimulus -= np.mean(stimulus, axis=0)
 		expected_rf = np.random.randn(1, 1, 2, 3)
 
 		# Expected output
@@ -369,6 +370,7 @@ class TestReceptiveField:
 		"""
 		# Define test inputs
 		stimulus = np.random.randn(20, 2, 3)
+		stimulus -= np.mean(stimulus, axis=0)
 		expected_rf = np.random.randn(2, 1, 2, 3)
 
 		# Expected output
@@ -394,6 +396,7 @@ class TestReceptiveField:
 		# Define test inputs
 		np.random.seed(123)
 		stimulus = np.random.randn(6, 2)
+		stimulus -= np.mean(stimulus, axis=0)
 		expected_rf = np.random.randn(3, 1, 2)
 		activity = encoder(stimulus, expected_rf)
 
@@ -416,6 +419,7 @@ class TestReceptiveField:
 		# Define test inputs
 		np.random.seed(124)
 		stimulus = np.random.randn(6, 2)
+		stimulus -= np.mean(stimulus, axis=0)
 		expected_rf = np.random.randn(3, 2, 2)
 		activity = encoder(stimulus, expected_rf)
 
@@ -441,6 +445,7 @@ class TestReceptiveField:
 
 		# Define receptive field and activity
 		expected_rf = np.random.randn(20, 30, 10)
+		stimulus -= np.mean(stimulus, axis=0)
 		activity = encoder(stimulus, expected_rf)
 
 		# Call the rf function
@@ -462,6 +467,7 @@ class TestReceptiveField:
 		# Generate temporally colored noise
 		np.random.seed(126)
 		stimulus = generate_spatially_colored_noise((200, 10), seed=126)
+		stimulus -= np.mean(stimulus, axis=0)
 
 		# Define receptive field and activity
 		expected_rf = np.random.randn(20, 30, 10)
@@ -486,6 +492,7 @@ class TestReceptiveField:
 		# Generate temporally colored noise
 		np.random.seed(127)
 		stimulus = generate_spatiotemporally_colored_noise((200, 10), seed=127)
+		stimulus -= np.mean(stimulus, axis=0)
 
 		# Define receptive field and activity
 		expected_rf = np.random.randn(20, 30, 10)
@@ -513,6 +520,7 @@ class TestReceptiveField:
 			# Generate random test inputs with different but reproducible seeds
 			np.random.seed(128 + i)
 			stimulus = np.random.rand(1000, 10, 5)
+			stimulus -= np.mean(stimulus, axis=0)
 			input_rf = np.random.rand(10, 30, 10, 5)
 
 			# Expected output (calculated using naive implementation)
