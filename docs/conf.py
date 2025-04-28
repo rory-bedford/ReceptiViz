@@ -14,7 +14,10 @@ release = 'v0.1.0a3'
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = []
+extensions = ['autoapi.extension']
+autoapi_type = 'python'
+autoapi_dirs = ['../src/receptual']
+autoapi_generate_api_docs = False
 
 templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']

@@ -25,10 +25,13 @@ def encoder(stimulus, receptive_field):
 	Args:
 		stimulus: numpy.ndarray
 			Input stimulus with shape:
+
 			- axis 0: time/samples (T)
 			- axis [1:]: spatial dimensions
+
 		receptive_field: numpy.ndarray
 			Receptive field kernel with shape:
+
 			- axis 0: kernel timepoints (K) where K < T
 			- axis 1: number of neurons (N)
 			- axis [2:]: spatial dimensions (must match stimulus)
@@ -36,6 +39,7 @@ def encoder(stimulus, receptive_field):
 	Returns:
 		numpy.ndarray:
 			The encoded stimulus with shape:
+
 			- axis 0: time/samples (T) (same as input)
 			- axis 1: number of neurons (N)
 
@@ -50,7 +54,7 @@ def encoder(stimulus, receptive_field):
 		of shape (K*spatial_dims,N).
 
 	Usage:
-		activity = encoder(stimulus, receptive_field)
+		>> activity = encoder(stimulus, receptive_field)
 	"""
 
 	assert stimulus.ndim >= 2, 'Stimulus must be at least a 2D array'
@@ -99,18 +103,23 @@ def receptive_field(stimulus, activity, kernel_size):
 	Args:
 		stimulus: numpy.ndarray
 			Input stimulus with shape:
+
 			- axis 0: time/samples (T)
 			- axis [1:]: spatial dimensions
+
 		activity: numpy.ndarray
 			Neural activity with shape:
+
 			- axis 0: time/samples (T) (must match stimulus)
 			- axis 1: number of neurons (N)
+
 		kernel_size: int
 			Temporal size of the receptive field kernel (K)
 
 	Returns:
 		numpy.ndarray:
 			Estimated receptive field kernel with shape:
+
 			- axis 0: kernel timepoints (K)
 			- axis 1: number of neurons (N) from activity
 			- axis [2:]: spatial dimensions from stimulus
@@ -127,7 +136,7 @@ def receptive_field(stimulus, activity, kernel_size):
 		of shape (K*spatial_dims,N).
 
 	Usage:
-		receptive_field = receptive_field(stimulus, activity, kernel_size)
+		>> receptive_field = receptive_field(stimulus, activity, kernel_size)
 	"""
 
 	assert stimulus.ndim >= 2, 'Stimulus must be at least a 2D array'

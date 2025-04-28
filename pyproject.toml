@@ -82,9 +82,11 @@ dev = [
     "hatch-vcs>=0.4.0",
     "pre-commit>=4.2.0",
     "pytest>=8.3.5",
+    "pytest-cov>=6.1.1",
     "ruff>=0.11.5",
     "scipy>=1.15.2",
 ]
 docs = [
     "sphinx>=8.2.3",
+    "sphinx-autoapi>=3.6.0",
 ]

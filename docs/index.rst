@@ -6,12 +6,20 @@
 Receptual documentation
 =======================
 
-Add your content using ``reStructuredText`` syntax. See the
-`reStructuredText <https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html>`_
-documentation for details.
+Receptual is a simple tool for computing and visualising neuron receptive fields.
 
+We provide fast and efficient implementations of the following algorithms:
+- Receptive field estimation
+- Encoding activity from stimuli
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
+   :hidden:
 
+   installation
+   data_prep
+   overview
+   appendix
+   contributing
+   api
