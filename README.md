@@ -8,4 +8,4 @@
 [![codecov](https://codecov.io/gh/rory-bedford/Receptual/graph/badge.svg?token=60S5WLF5PE)](https://codecov.io/gh/rory-bedford/Receptual)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-<img src="assets/receptive_field.gif" width="200">
+<img src="assets/receptive_field.gif" width="300">

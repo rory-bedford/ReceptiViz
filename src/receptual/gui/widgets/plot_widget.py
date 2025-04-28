@@ -1,6 +1,13 @@
 import numpy as np
 import pyqtgraph.opengl as gl
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QCheckBox, QHBoxLayout
+from PyQt6.QtWidgets import (
+	QWidget,
+	QVBoxLayout,
+	QLabel,
+	QCheckBox,
+	QHBoxLayout,
+	QPushButton,
+)
 from PyQt6.QtCore import Qt, QTimer
 
 
@@ -24,7 +31,7 @@ class CustomGLViewWidget(gl.GLViewWidget):
 class Plot3DWidget(QWidget):
 	"""A 3D plotting widget using PyQtGraph's OpenGL capabilities."""
 
-	def __init__(self, plot_manager=None, parent=None):
+	def __init__(self, plot_manager=None, parent=None, plot_color='white'):
 		super().__init__(parent)
 		self.plot_manager = plot_manager
 
@@ -45,6 +52,24 @@ class Plot3DWidget(QWidget):
 		self.rotation_speed = 1  # degrees per frame
 		self.is_rotating = False
 
+		# Plot color can be 'white' or 'black'
+		self.plot_color = plot_color
+		# Define color mappings
+		self.color_settings = {
+			'white': {
+				'line_color': (1, 1, 1, 1),  # White with full opacity
+				'surface_color': (1, 1, 1, 0.8),  # White with some transparency
+				'edge_color': (0.8, 0.8, 0.8, 1),  # Light gray
+				'background': (0, 0, 0, 0),  # Transparent background
+			},
+			'black': {
+				'line_color': (0, 0, 0, 1),  # Black with full opacity
+				'surface_color': (0, 0, 0, 0.8),  # Black with some transparency
+				'edge_color': (0.2, 0.2, 0.2, 1),  # Dark gray
+				'background': (0, 0, 0, 0),  # Transparent background
+			},
+		}
+
 		self.init_ui()
 
 	def init_ui(self):
@@ -63,7 +88,12 @@ class Plot3DWidget(QWidget):
 
 		# Create the custom OpenGL view widget that passes mouse events
 		self.plot_view = CustomGLViewWidget(self)
-		self.plot_view.setBackgroundColor('k')  # Black background
+
+		# Use transparent background
+		self.plot_view.setBackgroundColor(
+			self.color_settings[self.plot_color]['background']
+		)
+
 		self.plot_view.setCameraPosition(distance=40, elevation=30, azimuth=45)
 		layout.addWidget(self.plot_view)
 
@@ -75,6 +105,11 @@ class Plot3DWidget(QWidget):
 		self.rotation_checkbox.setChecked(False)
 		self.rotation_checkbox.toggled.connect(self.toggle_rotation)
 		controls_layout.addWidget(self.rotation_checkbox)
+
+		# Add color toggle button
+		self.color_button = QPushButton('Toggle Color')
+		self.color_button.clicked.connect(self.toggle_color)
+		controls_layout.addWidget(self.color_button)
 
 		# Add the controls to the main layout
 		layout.addLayout(controls_layout)
@@ -100,6 +135,18 @@ class Plot3DWidget(QWidget):
 			self.rotation_timer.start(30)  # ~33 fps
 		else:
 			self.rotation_timer.stop()
+
+	def toggle_color(self):
+		"""Toggle between white and black plot colors"""
+		self.plot_color = 'black' if self.plot_color == 'white' else 'white'
+
+		# Apply new color to the view background
+		self.plot_view.setBackgroundColor(
+			self.color_settings[self.plot_color]['background']
+		)
+
+		# Redraw the plot with the new color
+		self.update_plot()
 
 	def rotate_model(self):
 		"""Rotate the view around by adjusting the camera azimuth"""
@@ -142,7 +189,7 @@ class Plot3DWidget(QWidget):
 		if was_rotating:
 			self.toggle_rotation(False)
 
-			# Reset grid_plot
+		# Reset grid_plot
 		self.grid_plot = None
 
 		# Save current camera position before updating
@@ -160,7 +207,7 @@ class Plot3DWidget(QWidget):
 					# Silently ignore errors during cleanup
 					pass
 
-			# Check if we have a valid plot manager with data
+		# Check if we have a valid plot manager with data
 		if self.plot_manager is None or not hasattr(self.plot_manager, 'plot_data'):
 			self.plot_view.hide()
 			self.error_label.setText(' ')
@@ -219,10 +266,13 @@ class Plot3DWidget(QWidget):
 							0, :
 						]  # Z coordinate (normalized height)
 
-						# Create the line plot with the line_strip mode
+						# Get the current color settings
+						line_color = self.color_settings[self.plot_color]['line_color']
+
+						# Create the line plot with the line_strip mode and current color
 						self.grid_plot = gl.GLLinePlotItem(
 							pos=points,
-							color=(1, 1, 1, 1),  # White
+							color=line_color,  # Use current color setting
 							width=4,  # Thicker line for better visibility
 							antialias=True,  # Smooth the line
 							mode='line_strip',  # Connect points in sequence
@@ -246,10 +296,13 @@ class Plot3DWidget(QWidget):
 							:, 0
 						]  # Z coordinate (normalized height)
 
-						# Create the line plot with the line_strip mode
+						# Get the current color settings
+						line_color = self.color_settings[self.plot_color]['line_color']
+
+						# Create the line plot with the line_strip mode and current color
 						self.grid_plot = gl.GLLinePlotItem(
 							pos=points,
-							color=(1, 1, 1, 1),  # White
+							color=line_color,  # Use current color setting
 							width=4,  # Thicker line for better visibility
 							antialias=True,  # Smooth the line
 							mode='line_strip',  # Connect points in sequence
@@ -275,7 +328,10 @@ class Plot3DWidget(QWidget):
 						n_neurons = normalized_data.shape[0]
 						other_dim_size = normalized_data.shape[1]
 
-						# Create a line for each neuron
+						# Get the current color settings
+						line_color = self.color_settings[self.plot_color]['line_color']
+
+						# Create a line for each neuron with current color
 						for i in range(n_neurons):
 							# Get data for this neuron
 							y_values = normalized_data[i, :]
@@ -289,10 +345,10 @@ class Plot3DWidget(QWidget):
 							)  # Y coordinate offset by neuron index
 							points[:, 2] = y_values  # Z coordinate (normalized height)
 
-							# Create line plot for this neuron
+							# Create line plot for this neuron with current color
 							line = gl.GLLinePlotItem(
 								pos=points,
-								color=(1, 1, 1, 1),  # White
+								color=line_color,  # Use current color setting
 								width=2,  # Line width
 								antialias=True,  # Smooth line
 								mode='line_strip',  # Connect points in sequence
@@ -317,7 +373,10 @@ class Plot3DWidget(QWidget):
 						n_neurons = normalized_data.shape[1]
 						other_dim_size = normalized_data.shape[0]
 
-						# Create a line for each neuron
+						# Get the current color settings
+						line_color = self.color_settings[self.plot_color]['line_color']
+
+						# Create a line for each neuron with current color
 						for i in range(n_neurons):
 							# Get data for this neuron
 							y_values = normalized_data[:, i]
@@ -332,10 +391,10 @@ class Plot3DWidget(QWidget):
 							points[:, 1] = i * 5  # Y coordinate offset by neuron index
 							points[:, 2] = y_values  # Z coordinate (normalized height)
 
-							# Create line plot for this neuron
+							# Create line plot for this neuron with current color
 							line = gl.GLLinePlotItem(
 								pos=points,
-								color=(1, 1, 1, 1),  # White
+								color=line_color,  # Use current color setting
 								width=2,  # Line width
 								antialias=True,  # Smooth line
 								mode='line_strip',  # Connect points in sequence
@@ -383,10 +442,13 @@ class Plot3DWidget(QWidget):
 
 			else:
 				# Normal 2D surface plot for regular data
+				# Get the current color settings
+				surface_color = self.color_settings[self.plot_color]['surface_color']
+
 				self.grid_plot = gl.GLSurfacePlotItem(
 					z=normalized_data,
 					shader='shaded',
-					color=(1, 1, 1, 1),  # White color
+					color=surface_color,  # Use current color setting
 					drawEdges=True,  # Draw edges to create grid effect
 					drawFaces=False,  # Don't draw faces to keep it wireframe
 					glOptions='opaque',
