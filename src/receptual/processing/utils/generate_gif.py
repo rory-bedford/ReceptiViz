@@ -449,7 +449,7 @@ def main():
 		help='Output GIF file path',
 	)
 	parser.add_argument(
-		'--frames', type=int, default=300, help='Number of frames in the animation'
+		'--frames', type=int, default=100, help='Number of frames in the animation'
 	)
 	parser.add_argument(
 		'--duration',
