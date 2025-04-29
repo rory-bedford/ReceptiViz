@@ -20,9 +20,9 @@ These methods often produce high-dimensional arrays, which can be difficult to a
 
 Receptual provides out-of-the-box fast NumPy + SciPy implementations of the following algorithms:
 
-    Receptive field estimation
+* Receptive field estimation
 
-    Activity encoding
+* Activity encoding
 
 We also make it easy to load your data from numpy arrays on disk, and save computation results back to disk.
 
