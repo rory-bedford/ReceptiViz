@@ -10,4 +10,6 @@
 
 Receptual is a simple tool for computing and visualising neuron receptive fields and decoding filters.
 
-<img src="assets/receptive_field.gif" width="300">
+<p align="center">
+    <img src="assets/receptive_field.gif" width="400">
+</p>
