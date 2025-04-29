@@ -1,2 +1,2 @@
-Appendix
-========
+Mathematical Appendix
+=====================

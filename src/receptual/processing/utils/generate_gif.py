@@ -346,7 +346,6 @@ def generate_gif(
 	scale=2.0,
 	rotation=90,
 	size=(800, 600),
-	color='white',  # Add color parameter with default 'white'
 ):
 	"""
 	Generate a GIF animation of a receptive field using the Plot3DWidget.
@@ -359,13 +358,7 @@ def generate_gif(
 		scale: Scale factor for resolution
 		rotation: Rotation angle in degrees
 		size: Size of the output GIF as (width, height)
-		color: Color mode for the plot ('white' or 'black')
 	"""
-	# Validate color parameter
-	if color not in ['white', 'black']:
-		print(f"Invalid color mode: {color}. Using default 'white'.")
-		color = 'white'
-
 	# Make sure the output path is absolute
 	output_file = os.path.abspath(output_file)
 
@@ -373,7 +366,6 @@ def generate_gif(
 	os.makedirs(os.path.dirname(output_file), exist_ok=True)
 
 	print(f'Output will be saved to: {output_file}')
-	print(f'Using {color} color mode')
 
 	# Initialize Qt application
 	app = QApplication.instance() or QApplication(sys.argv)
@@ -393,7 +385,7 @@ def generate_gif(
 	plot_manager = PlotManager(dummy_manager)
 
 	# Create the plot widget with specified color mode
-	plot_widget = Plot3DWidget(plot_manager=None, parent=None, plot_color=color)
+	plot_widget = Plot3DWidget(plot_manager=None, parent=None)
 	plot_widget.resize(*size)
 
 	# Set the plot manager to initialize the plot
@@ -457,29 +449,22 @@ def main():
 		help='Output GIF file path',
 	)
 	parser.add_argument(
-		'--frames', type=int, default=100, help='Number of frames in the animation'
+		'--frames', type=int, default=60, help='Number of frames in the animation'
 	)
 	parser.add_argument(
 		'--duration',
 		type=float,
-		default=0.003,
+		default=0.0015,
 		help='Duration between frames in seconds',
 	)
 	parser.add_argument(
-		'--scale', type=float, default=2.0, help='Scale factor for resolution'
+		'--scale', type=float, default=4.0, help='Scale factor for resolution'
 	)
 	parser.add_argument(
-		'--rotation', type=float, default=360.0, help='Rotation angle in degrees'
+		'--rotation', type=float, default=90.0, help='Rotation angle in degrees'
 	)
 	parser.add_argument(
 		'--size', type=str, default='800x600', help='Output size in format WIDTHxHEIGHT'
-	)
-	parser.add_argument(
-		'--color',
-		type=str,
-		choices=['white', 'black'],
-		default='white',
-		help='Color mode for the plot (white or black)',
 	)
 
 	args = parser.parse_args()
@@ -518,7 +503,6 @@ def main():
 		scale=args.scale,
 		rotation=args.rotation,
 		size=size,
-		color=args.color,  # Pass the color parameter
 	)
 
 

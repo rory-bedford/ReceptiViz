@@ -8,14 +8,22 @@ Receptual documentation
 
 Receptual is a simple tool for computing and visualising neuron receptive fields and decoding filters.
 
+.. image:: images/receptive_field_white.gif
+   :alt: Receptive Field GIF
+   :width: 400px
+   :align: center
+
 Linear encoding and decoding methods are essential for understanding the relationship between neural activity and sensory stimuli. They are widely used in systems neuroscience, computational neuroscience, and mechanistic interpretability for deep learning.
 
-We provide fast NumPy + SciPy implementations of the following algorithms:
+These methods often produce high-dimensional arrays, which can be difficult to analyze and interpret. Receptual has an interactive OpenGL + Qt 3D visualisation tool for this purpose, allowing you to graphically inspect you activity traces, stimuli, receptive fields, and decoding filters.
+
+Receptual provides out-of-the-box fast NumPy + SciPy implementations of the following algorithms:
 
 - Receptive field estimation
 - Activity encoding
 
-We also provide an interactive OpenGL + Qt 3D visualisation tool so you can graphically interpret the relationships between your neural activity and stimuli.
+We also make it easy to load your data from numpy arrays on disk, and save computation results back to disk.
+
 
 .. toctree::
    :maxdepth: 2

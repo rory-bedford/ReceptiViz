@@ -11,7 +11,7 @@
 Receptual is a simple tool for computing and visualising neuron receptive fields and decoding filters.
 
 <p align="center">
-    <img src="assets/receptive_field.gif" width="400">
+    <img src="assets/receptive_field_black.gif" width="400">
 </p>
 
 Linear encoding and decoding methods are essential for understanding the relationship between neural activity and sensory stimuli. They are widely used in systems neuroscience, computational neuroscience, and mechanistic interpretability for deep learning.
