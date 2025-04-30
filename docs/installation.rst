@@ -33,7 +33,7 @@ conda
 	# Install Receptual
 	pip install receptual
 
-You can then launch Receptual in your activated environment with:
+You can then test that Receptual launches in your activated environment with:
 
 .. code-block:: bash
 

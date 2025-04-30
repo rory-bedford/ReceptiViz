@@ -57,7 +57,7 @@ First of all, your data might need transposing. Say, for example, your stimulus 
 	>>> data.shape
 	(1000, 64, 64)
 
-You might also need to adda singleton dimension. Say you have activity from just a single neuron across 1000 timepoints, and your NumPy array has shape `(1000,)`. You can use `np.newaxis` to add a singleton dimension:
+You might also need to add a singleton dimension. Say you have activity from just a single neuron across 1000 timepoints, and your NumPy array has shape `(1000,)`. You can use `np.newaxis` to add a singleton dimension:
 
 .. code-block:: pycon
 
@@ -68,4 +68,44 @@ You might also need to adda singleton dimension. Say you have activity from just
 	>>> data.shape
 	(1000, 1)
 
-# something about interpolating timestmaps here
+If your activity and stimulus are recorded at different sample rates, then you will need to resample them to match. There are a number of useful tools for this in `scipy.signal` and `scipy.interpolate`. We will demonstrate a particularly useful one here, using `scipy.signal.make_interp_spline`.
+
+Let's say you recorded calcium imaging activity at 10Hz for 60s, and recorded 20 neurons. Then we expect your data to look like:
+
+.. code-block:: pycon
+
+	>>> activity.shape
+	(600, 20)
+
+Let's also say your stimulus was a 128x128 wideo recorded at 30Hz for 60s. Then we expect your data to look like:
+
+.. code-block:: pycon
+
+	>>> stimulus.shape
+	(1800, 128, 128)
+
+To resample your data to match, you have a few options. Let's say you choose to upsample your activity recording to 30Hz. This could be done as follows:
+
+.. code-block:: pycon
+
+	>>> from scipy.signal import make_interp_spline
+	>>> import numpy as np
+
+	>>> # Create a time vector for your activity data
+	>>> t_act = np.linspace(0, 60, 600)
+
+	>>> # Create a time vector for your stimulus data
+	>>> t_stim = np.linspace(0, 60, 1800)
+
+	>>> # Create a spline interpolation of your activity data
+	>>> spline = make_interp_spline(t_act, activity, k=3)
+
+	>>> # Resample your activity data to match the stimulus data
+	>>> resampled_activity = spline(t_stim)
+
+	>>> resampled_activity.shape
+	(1800, 20)
+
+Where `k=3` means we are using a cubic spline, which is often a good choice as it guarantees smoothness of the interpolation, while avoiding unnecessary oscillations from higher order polynomials.
+
+Alternatively, you could have chosen to downsample your stimulus data. Additionally, this method is powerful enough to resample data from non-constant sample rates, as long as you know the underlying timestamps each sample was taken at.

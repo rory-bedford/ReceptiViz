@@ -8,22 +8,63 @@
 [![codecov](https://codecov.io/gh/rory-bedford/Receptual/graph/badge.svg?token=60S5WLF5PE)](https://codecov.io/gh/rory-bedford/Receptual)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Receptual is a simple tool for computing and visualising neuron receptive fields and decoding filters.
+**Receptual** is a lightweight, interactive tool for computing and visualizing neuron receptive fields and linear decoders.
 
 <p align="center">
     <img src="assets/receptive_field_black.gif" width="400">
 </p>
 
-Linear encoding and decoding methods are essential for understanding the relationship between neural activity and sensory stimuli. They are widely used in systems neuroscience, computational neuroscience, and mechanistic interpretability for deep learning.
+## Overview
 
-These methods often produce high-dimensional arrays, which can be difficult to analyze and interpret. Receptual has an interactive OpenGL + Qt 3D visualisation tool for this purpose, allowing you to graphically inspect your activity traces, stimuli, receptive fields, and decoding filters.
+Linear encoding and decoding methods are essential tools for:
 
-Receptual provides out-of-the-box fast NumPy + SciPy implementations of the following algorithms:
+- Systems neuroscience
+- Computational neuroscience
+- Deep learning interpretability
 
-* Receptive field estimation
+However, these methods often produce high-dimensional arrays, which are difficult to analyze and interpret. Additionally, despite the ubiquity of linear methods, implementing them can be challenging.
 
-* Activity encoding
+Receptual helps by providing standardized algorithm implementations for linear encoding and decoding methods. We also provide a visualization tool to help you explore the high-dimensional arrays that often result from these methods.
 
-We also make it easy to load your data from numpy arrays on disk, and save computation results back to disk.
+## Key Features
 
-To get started with Receptual, please see our [documentation](https://www.receptual.readthedocs.io/)
+- **Interactive 3D Visualization**  
+  OpenGL + Qt-based viewer for receptive fields, stimuli, activity traces, and decoders
+
+- **Efficient Algorithms**  
+  Fast NumPy and SciPy implementations tailored for neuroscience use cases
+
+## Implemented Algorithms
+
+Receptual provides the following out-of-the-box:
+
+- Receptive field estimation
+- Linear activity encoding
+
+## Installation
+
+Receptual requires Python 3.13 or later and is available on PyPI:
+
+```bash
+# Using uv
+uv venv $HOME/venvs/receptual --python 3.13 # or wherever you keep your environments
+source $HOME/venvs/receptual/bin/activate
+uv pip install receptual
+
+# Using conda
+conda create -n receptual python=3.13
+conda activate receptual
+pip install receptual
+```
+
+## Quick Start
+
+Launch the visualization tool with:
+
+```bash
+receptual
+```
+
+## Documentation
+
+For detailed usage instructions, examples, and API reference, please visit our [documentation](https://receptual.readthedocs.io/).
