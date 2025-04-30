@@ -65,6 +65,12 @@ Launch the visualization tool with:
 receptual
 ```
 
+Or use the algorithms yourself:
+```python
+import receptual
+activity = receptual.encoder(stimulus, receptive_field)
+```
+
 ## Documentation
 
 For detailed usage instructions, examples, and API reference, please visit our [documentation](https://receptual.readthedocs.io/).
