@@ -19,6 +19,12 @@ dependencies = [
     "tqdm>=4.67.1",
 ]
 
+[project.urls]
+Documentation = "https://receptual.readthedocs.io/"
+Source = "https://github.com/rory-bedford/Receptual"
+Issues = "https://github.com/rory-bedford/Receptual/issues"
+Changelog = "https://github.com/rory-bedford/Receptual/blob/main/CHANGELOG.md"
+
 [project.scripts]
 receptual = "receptual.app:main"
 generate-sample-data = "receptual.processing.utils.generate_sample_data:main"

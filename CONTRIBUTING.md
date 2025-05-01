@@ -40,6 +40,10 @@ We then have a GitHub action that runs:
 
 Any pull request will be blocked if any of these fail.
 
+## CHANGELOG
+
+We use the [keep a changelog](https://keepachangelog.com/) format to track changes to the repository. Please add or update the 'Unreleased' section at the top whenever you make a pull request. This will be updated to the latest version release notes when the version is released.
+
 ## Run Checks Manually
 
 You can also run the formatting and checks manually anytime:

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.0] - 2025-05-01
+### Added
+- Fully functional graphical user interface
+- Receptive field estimation and encoding algorithms
+- Unit tests for the core processing algorithms
+- Sample data for users to download and test
+- Comprehensive documentation
+
 ## [0.1.0a3] - 2025-04-17
 ### ReadtheDocs
 - Testing documentation versioning
