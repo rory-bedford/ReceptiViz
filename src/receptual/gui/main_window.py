@@ -85,10 +85,14 @@ class MainWindow(QMainWindow):
 	def connect_update_triggers(self):
 		"""Connect events that should trigger a status update."""
 		# Update status after menu operations
+		# Note: We're now checking if attributes exist before accessing them
+
+		# Check if load_menu exists (it won't until implemented)
 		if hasattr(self.menu_bar, 'load_menu'):
 			for action in self.menu_bar.load_menu.actions():
 				action.triggered.connect(self.update_status)
 
+		# Check if compute_menu exists (it won't until implemented)
 		if hasattr(self.menu_bar, 'compute_menu'):
 			for action in self.menu_bar.compute_menu.actions():
 				action.triggered.connect(self.update_status)
