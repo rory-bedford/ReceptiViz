@@ -38,6 +38,11 @@ jobs:
       - name: Zip sample data
         run: |
           zip -r sample_data_${{ github.ref_name }}.zip sample_data/
+
+      - name: Extract release notes
+        uses: ffurrer2/extract-release-notes@v2
+        with:
+          release_notes_file: RELEASE_NOTES.md
   
       - name: Upload Python package to GitHub Release
         uses: softprops/action-gh-release@v1
@@ -45,7 +50,7 @@ jobs:
           files: |
             dist/*.tar.gz
             dist/*.whl
-          body_path: CHANGELOG.md
+          body_path: RELEASE_NOTES.md
           token: ${{ secrets.GITHUB_TOKEN }}
   
       - name: Upload sample data to GitHub Release
