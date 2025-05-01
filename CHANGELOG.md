@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.1.2] - 2025-05-01
+### Fixed
+- GIF too big for PyPI
+
 ## [0.1.1] - 2025-05-01
 ### Fixed
 - Broken metadata on PyPI

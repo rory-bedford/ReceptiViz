@@ -9,7 +9,7 @@
 project = 'Receptual'
 copyright = '2025, Rory Bedford'
 author = 'Rory Bedford'
-release = 'v0.1.1'
+release = 'v0.1.2'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
