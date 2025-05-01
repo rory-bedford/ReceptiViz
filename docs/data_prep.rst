@@ -32,14 +32,33 @@ We also require that you shape your arrays into the following shapes:
 
 Where `kernel_size` is the number of timepoints in the receptive field or decoder kernel, and `*spatial_dims` are any spatial dimensions (e.g. height and width for images). Note that we strictly require at least one spatial dimension and one neuron - if your stimulus data is a scalar value, or if you have activity from only one neuron, you must add a singleton dimension in the correct place. This is to avoid any ambiguity as to what the different dimensions correspond to - without it, your computation could silently fail, returning a result that doesn't mean what you intended.
 
+Technically, our receptive field here actually corresponds to multiple independent receptive fields stacked for each neuron for simplicity. No correlations between neuron activities are modelled in standard receptive field regression. Similarly, for a decoder, different stimulus components are typically also modelled independetly.
+
+Data size
+---------
+
+In order for receptive field estimation to be well-defined, it is necessary that the total size of the receptive field, given by the product of the kernel size and the number of spatial dimensions, is less than the number of timepoints in your stimulus. For example, if you have a 128x128 image stimulus, and a kernel size of 10, then you need at least 128x128x10 timepoints in your stimulus. Typically you should aim for much more than this. Similarly for a linear decoder, the total decoder size, given by the product of the kernel size and the number of neurons, should be less that the number of timepoints in your sample.
+
+By default, we use zero padding at the edges of the your data. This means that predictions within the kernel size near the start of the recording for encoding, or within half the kernel size of the start and end of the recording for decoding, will have edge effects. This makes sense as there simply isn't enough data there to make a good estimate.
+
 Note on whitened stimuli
 ------------------------
 
 Often, you will hear it said that stimuli should be whitened to compute optimal receptive fields - that is, they your stimuli should have no temporal or spatial correlations prior to presentation to the animal/model. This is not technically necessary, and in fact by default our algorithm implements a decorrelation step that accounts for non-whitened stimuli.
 
-However, there are some caveats here. What is necessary for receptive field estimation to be well-defined is that all frequencies resolvable within the kernel, given by :math:`[\frac{1}{2K\Delta t},\frac{1}{2\Delta T}]`, are present in the power spectrum of your stimulus. It doesn't require these frequency components to have equal power as in the case of white noise, but if any are missing, your receptive field is ill-defined. This can be solved by adding a small ridge-regression term, resolving the ambiguity by forcing receptive field terms to be closer to zero. It can also be improved by decreasing the kernel width K, decreasing the bandwidth of frequencies that need to be represented.
+However, there are some caveats here. What is necessary for receptive field estimation to be well-defined is that all frequencies resolvable within the kernel are present in the power spectrum of your stimulus. In full, the frequencies resolvable by the kernel are given by:
 
-TL;DR: the closer your stimuli are to white noise, the better your receptive field estimates will be. If your stimuli are lacking crucial frequency components, the situation can be improved by decreasing the kernel width K.
+.. math::
+
+	f_{res} = \frac{n}{K\Delta T}: n=1:\frac{K}{2}
+
+Where :math:`K` is the kernel size, :math:`\Delta T` is your stimulus sample rate. This goes from the kernel frequency up to the Nyquist frequency, :math:`\frac{1}{2\Delta T}`, in units of the kernel frequency, and there are two independent phase components for each frequency.
+
+These components must be present in the power spectrum of your stimulus. It doesn't require these frequency components to have equal power as in the case of white noise, but if any are missing, your receptive field is ill-defined. This can be solved by adding a small ridge-regression term, resolving the ambiguity by forcing receptive field terms to be closer to zero. It can also be improved by decreasing the kernel width K, decreasing the bandwidth of frequencies that need to be represented.
+
+There are complications given by how components higher than the Nyquist frequency alias into the lower frequencies, and how non-integer frequencies get aliased, but a good rule of thumb is to ensure you have good coverage up to the Nyquist frequency.
+
+**TL;DR:** the closer your stimuli are to white noise, the better your receptive field estimates will be. You need to ensure your stimulus has good frequency coverage, meaning monotone signals will fail. If your stimuli are lacking crucial frequency components, the situation can be improved by decreasing the kernel width K.
 
 Some tricks
 -----------
