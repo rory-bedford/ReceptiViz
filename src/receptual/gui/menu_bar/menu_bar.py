@@ -4,13 +4,14 @@ from receptual.gui.menu_bar.load_menu import LoadMenu
 from receptual.gui.menu_bar.compute_menu import ComputeMenu
 from receptual.gui.menu_bar.save_menu import SaveMenu
 from receptual.gui.menu_bar.plot_menu import PlotMenu
-from receptual.gui.menu_bar.download_menu import DownloadMenu  # Add the new menu
+from receptual.gui.menu_bar.download_menu import DownloadMenu
+from receptual.gui.menu_bar.reset_menu import ResetMenu  # Import the new menu
 
 
 class MenuBar(QMenuBar):
 	"""Main menu bar for the application.
 
-	Organizes the File, Load, Compute, Save, Plot, and Download menus.
+	Organizes the Load, Compute, Save, Plot, Download, and Reset menus.
 	"""
 
 	def __init__(self, parent=None, data_manager=None):
@@ -32,6 +33,9 @@ class MenuBar(QMenuBar):
 		self.plot_menu = PlotMenu(self.main_window, data_manager)
 		self.addMenu(self.plot_menu)
 
-		# Add our new download menu
 		self.download_menu = DownloadMenu(self.main_window, data_manager)
 		self.addMenu(self.download_menu)
+
+		# Add the new Reset menu
+		self.reset_menu = ResetMenu(self.main_window, data_manager)
+		self.addMenu(self.reset_menu)
