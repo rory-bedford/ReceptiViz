@@ -13,6 +13,19 @@ class MainWindow(QMainWindow):
 		super().__init__(parent)
 		self.setWindowTitle('Receptual')
 
+		# Remove the line under the menubar - apply styling to QMainWindow
+		self.setStyleSheet("""
+			QMainWindow::separator {
+				height: 0px;
+				width: 0px;
+				margin: 0px;
+				padding: 0px;
+			}
+			QMenuBar {
+				border-bottom: none;
+			}
+		""")
+
 		# Create central widget
 		self.central_widget = QWidget()
 		self.setCentralWidget(self.central_widget)
