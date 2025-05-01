@@ -1,6 +1,6 @@
 import numpy as np
 import pyqtgraph.opengl as gl
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QCheckBox, QHBoxLayout
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QCheckBox, QHBoxLayout, QFrame
 from PyQt6.QtCore import Qt, QTimer
 
 
@@ -32,6 +32,8 @@ class Plot3DWidget(QWidget):
 		self.plot_view = None
 		self.grid_plot = None
 		self.error_label = None
+		self.plot_frame = None
+		self.checkbox_container = None
 
 		# Store camera parameters to maintain view during updates
 		self.last_distance = None
@@ -49,9 +51,10 @@ class Plot3DWidget(QWidget):
 
 	def init_ui(self):
 		"""Initialize the UI components"""
-		# Create layout
+		# Create main layout
 		layout = QVBoxLayout(self)
 		layout.setContentsMargins(0, 0, 0, 0)
+		layout.setSpacing(0)  # Remove spacing between components
 
 		# Create error label (hidden by default)
 		self.error_label = QLabel(' ')
@@ -61,23 +64,91 @@ class Plot3DWidget(QWidget):
 		)
 		layout.addWidget(self.error_label)
 
-		# Create the custom OpenGL view widget that passes mouse events
+		# Create a frame with the light grey border - now with thinner border
+		plot_frame = QFrame()
+		plot_frame.setFrameShape(QFrame.Shape.StyledPanel)  # Add panel style
+		plot_frame.setStyleSheet('border: 0.5px solid #cccccc;')  # Thinner border
+
+		# Use a layout for the frame
+		plot_frame_layout = QVBoxLayout(plot_frame)
+		plot_frame_layout.setContentsMargins(0, 0, 0, 0)  # No margins
+		plot_frame_layout.setSpacing(0)  # No spacing
+
+		# Create the GL view widget
 		self.plot_view = CustomGLViewWidget(self)
 		self.plot_view.setBackgroundColor('k')  # Black background
 		self.plot_view.setCameraPosition(distance=40, elevation=30, azimuth=45)
-		layout.addWidget(self.plot_view)
 
-		# Create controls layout
-		controls_layout = QHBoxLayout()
+		# Add the plot view to the frame layout
+		plot_frame_layout.addWidget(self.plot_view)
 
-		# Add rotation checkbox
+		# Add the frame to the main layout
+		layout.addWidget(plot_frame, 1)  # Stretch factor of 1
+
+		# Create the rotation checkbox with proper event handling
 		self.rotation_checkbox = QCheckBox('Rotate')
 		self.rotation_checkbox.setChecked(False)
 		self.rotation_checkbox.toggled.connect(self.toggle_rotation)
-		controls_layout.addWidget(self.rotation_checkbox)
 
-		# Add the controls to the main layout
-		layout.addLayout(controls_layout)
+		# Style the checkbox - make sure it's visible and clickable
+		self.rotation_checkbox.setStyleSheet("""
+			QCheckBox {
+				color: white;
+				background-color: rgba(40, 40, 40, 150); 
+				border-radius: 3px;
+				padding: 3px;
+				margin: 5px;
+			}
+			QCheckBox::indicator {
+				width: 13px;
+				height: 13px;
+			}
+		""")
+
+		# Add checkbox directly to the main layout
+		from PyQt6.QtWidgets import QWidget
+
+		# Create a container widget for the checkbox that overlays on top of the plot
+		checkbox_container = QWidget(self)
+		checkbox_container.setAttribute(
+			Qt.WidgetAttribute.WA_TransparentForMouseEvents, False
+		)
+
+		# Use a horizontal layout with a stretch to push the checkbox to the right
+		checkbox_layout = QHBoxLayout(checkbox_container)
+		checkbox_layout.setContentsMargins(0, 0, 5, 5)  # Small right and bottom margin
+		checkbox_layout.addStretch(1)  # Push to the right
+		checkbox_layout.addWidget(self.rotation_checkbox)
+
+		# Set the container to be on top of everything
+		checkbox_container.raise_()
+
+		# Position the container at the bottom of the plot
+		from PyQt6.QtCore import QPoint, QSize
+
+		def update_container_position():
+			if plot_frame.isVisible():
+				# Position at the bottom right of the plot frame
+				pos = plot_frame.mapTo(
+					self, QPoint(0, plot_frame.height() - checkbox_container.height())
+				)
+				size = QSize(plot_frame.width(), checkbox_container.sizeHint().height())
+				checkbox_container.setGeometry(
+					pos.x(), pos.y(), size.width(), size.height()
+				)
+
+		# Call update whenever the plot frame changes size or visibility
+		old_resize_event = plot_frame.resizeEvent
+
+		def new_resize_event(event):
+			if old_resize_event:
+				old_resize_event(event)
+			update_container_position()
+
+		plot_frame.resizeEvent = new_resize_event
+
+		# Initialize the position
+		update_container_position()
 
 		# Set default camera parameters
 		self.last_distance = 40
@@ -85,9 +156,17 @@ class Plot3DWidget(QWidget):
 		self.last_azimuth = 45
 		self.last_center = [0, 0, 0]
 
-		# Hide the view initially until we have data
-		self.plot_view.hide()
+		# Hide the plot frame initially until we have data
+		plot_frame.hide()
 		self.error_label.show()
+		checkbox_container.hide()  # Hide checkbox container too
+
+		# Store the frame and checkbox container for later visibility control
+		self.plot_frame = plot_frame
+		self.checkbox_container = checkbox_container
+
+		# Store the update position function
+		self.update_container_position = update_container_position
 
 		# Update the widget with initial data
 		self.update_plot()
@@ -184,7 +263,8 @@ class Plot3DWidget(QWidget):
 
 		# Check if we have a valid plot manager with data
 		if self.plot_manager is None or not hasattr(self.plot_manager, 'plot_data'):
-			self.plot_view.hide()
+			self.plot_frame.hide()  # Hide the frame
+			self.checkbox_container.hide()  # Hide the checkbox container
 			self.error_label.setText(' ')
 			self.error_label.show()
 			return
@@ -195,7 +275,8 @@ class Plot3DWidget(QWidget):
 
 			# Check data shape and validity
 			if data is None or data.size == 0:
-				self.plot_view.hide()
+				self.plot_frame.hide()  # Hide the frame
+				self.checkbox_container.hide()  # Hide the checkbox container
 				self.error_label.setText(' ')
 				self.error_label.show()
 				return
@@ -334,16 +415,17 @@ class Plot3DWidget(QWidget):
 			# Restore saved camera position if available
 			self.restore_camera_position()
 
-			# Show the plot view and hide the error
-			self.plot_view.show()
+			# Show the plot and hide the error
+			self.plot_frame.show()
+			self.checkbox_container.show()
+			self.update_container_position()  # Make sure the container is positioned correctly
 			self.error_label.hide()
 
 		except Exception as e:
-			# If there's an error, show the error message in UI but don't print to console
-			self.plot_view.hide()
+			self.plot_frame.hide()
+			self.checkbox_container.hide()
 			self.error_label.setText(f'Error plotting data: {str(e)}')
 			self.error_label.show()
-			# Raise the exception again for higher-level handling
 			raise
 
 		# Restart rotation if it was active before
