@@ -203,13 +203,14 @@ class RangeSlider(QWidget):
 		self.lower_value = max(min_value, lower_value)
 		self.upper_value = min(max_value, upper_value)
 
-		self.pressed_control = None
+		self.pressed_control = None  # 'lower', 'upper', or 'middle' for entire range
 		self.hover_control = None
 		self.lower_pos = 0
 		self.upper_pos = 0
 		self.offset = 0
 		self.position = 0
 		self.last_click_pos = None
+		self.range_width = 0  # Track the range width when dragging the entire range
 
 		# Set minimal height for the slider
 		self.setMinimumHeight(30)
@@ -318,9 +319,49 @@ class RangeSlider(QWidget):
 		painter.drawRoundedRect(lower_handle, 3, 3)
 		painter.drawRoundedRect(upper_handle, 3, 3)
 
+		# Draw a small central handle or grip in the middle of the selected range
+		# if there's enough space between handles (at least 3 times handle width)
+		if self.upper_pos - self.lower_pos > 3 * self.handle_width:
+			# Create a small grip rectangle
+			middle_x = (self.lower_pos + self.upper_pos) // 2
+			grip_width = min(24, int(self.upper_pos - self.lower_pos) // 3)
+			grip_height = 10  # Smaller than the handles
+
+			grip_rect = QRect(
+				int(middle_x - grip_width // 2),
+				track_y - grip_height // 2,
+				grip_width,
+				grip_height,
+			)
+
+			# Fill with a slightly darker gradient to differentiate from handles
+			middle_gradient = QLinearGradient(
+				0, track_y - grip_height // 2, 0, track_y + grip_height // 2
+			)
+			middle_gradient.setColorAt(0, QColor(220, 220, 220))
+			middle_gradient.setColorAt(1, QColor(180, 180, 180))
+
+			painter.setBrush(middle_gradient)
+			painter.setPen(QColor(150, 150, 150))
+			painter.drawRoundedRect(grip_rect, 2, 2)
+
+			# Add grip lines for visual indicator
+			painter.setPen(QColor(120, 120, 120))
+			grip_center_x = int(middle_x)  # Ensure this is an integer
+			line_width = min(grip_width - 6, 12)
+
+			for i in range(3):
+				y_pos = track_y - 3 + i * 3
+				# Make sure all arguments are integers
+				painter.drawLine(
+					int(grip_center_x - line_width // 2),
+					int(y_pos),
+					int(grip_center_x + line_width // 2),
+					int(y_pos),
+				)
+
 		# Optionally draw small dots or tick marks to indicate min and max values
 		# at the ends of the track
-
 		# Min dot
 		min_dot_x = self.handle_width
 		painter.setBrush(QBrush(QColor(100, 100, 100)))
@@ -356,6 +397,14 @@ class RangeSlider(QWidget):
 				self.handle_height + 10,
 			)
 
+			# Define the middle area (the range between handles)
+			middle_area = QRect(
+				int(self.lower_pos + self.handle_width // 2),
+				track_y - 15,  # Make taller for easier clicking
+				int(self.upper_pos - self.lower_pos - self.handle_width),
+				30,
+			)
+
 			if lower_handle.contains(
 				int(event.position().x()), int(event.position().y())
 			):
@@ -370,6 +419,16 @@ class RangeSlider(QWidget):
 				self.offset = event.position().x() - self.upper_pos
 				# Set cursor to indicate dragging
 				self.setCursor(Qt.CursorShape.SizeHorCursor)
+			elif middle_area.contains(
+				int(event.position().x()), int(event.position().y())
+			):
+				# Dragging the entire range
+				self.pressed_control = 'middle'
+				self.offset = event.position().x()
+				# Store the current width of the range
+				self.range_width = self.upper_value - self.lower_value
+				# Set cursor to indicate dragging
+				self.setCursor(Qt.CursorShape.ClosedHandCursor)
 			else:
 				# Check if clicked on track - jump to position
 				track_rect = QRect(
@@ -413,8 +472,49 @@ class RangeSlider(QWidget):
 				self.width() - 2 * self.handle_width
 			)
 			self.set_upper_value(int(new_value))
+		elif self.pressed_control == 'middle':
+			# Calculate how much the mouse has moved from the initial click
+			delta_pos = event.position().x() - self.offset
+			span = self.max_value - self.min_value
+			delta_value = int(delta_pos * span / (self.width() - 2 * self.handle_width))
+
+			# Calculate new positions while maintaining the range width
+			new_lower = self.lower_value + delta_value
+			new_upper = new_lower + self.range_width
+
+			# Ensure we don't exceed the slider bounds
+			if new_lower < self.min_value:
+				new_lower = self.min_value
+				new_upper = new_lower + self.range_width
+
+			if new_upper > self.max_value:
+				new_upper = self.max_value
+				new_lower = new_upper - self.range_width
+
+				# If still out of bounds (range width is too large)
+				if new_lower < self.min_value:
+					new_lower = self.min_value
+
+			# Only update if values have changed
+			if new_lower != self.lower_value or new_upper != self.upper_value:
+				# Update both values at once
+				# We're skipping the individual set methods to avoid emitting signals twice
+				was_blocked = self.blockSignals(True)
+				self.lower_value = new_lower
+				self.blockSignals(was_blocked)
+				self.upper_value = new_upper
+
+				# Update positions
+				self.update_position()
+
+				# Emit once with both new values
+				self.range_changed.emit(self.lower_value, self.upper_value)
+
+			# Update offset for next movement
+			self.offset = event.position().x()
+
 		elif not self.pressed_control:
-			# Update cursor if hovering over a handle
+			# Update cursor based on hover position
 			track_y = self.height() // 2
 			lower_handle = QRect(
 				int(self.lower_pos - self.handle_width),
@@ -430,19 +530,68 @@ class RangeSlider(QWidget):
 				self.handle_height + 10,
 			)
 
+			# Define the middle area (the range between handles)
+			middle_area = QRect(
+				int(self.lower_pos + self.handle_width // 2),
+				track_y - 15,
+				int(self.upper_pos - self.lower_pos - self.handle_width),
+				30,
+			)
+
 			if lower_handle.contains(
 				int(event.position().x()), int(event.position().y())
 			) or upper_handle.contains(
 				int(event.position().x()), int(event.position().y())
 			):
 				self.setCursor(Qt.CursorShape.SizeHorCursor)
+			elif middle_area.contains(
+				int(event.position().x()), int(event.position().y())
+			):
+				# Change cursor to indicate ability to drag the range
+				self.setCursor(Qt.CursorShape.OpenHandCursor)
 			else:
 				self.setCursor(Qt.CursorShape.ArrowCursor)
 
 	def mouseReleaseEvent(self, event):
 		"""Handle mouse release events"""
 		self.pressed_control = None
-		self.setCursor(Qt.CursorShape.ArrowCursor)
+		self.range_width = 0
+
+		# Reset cursor based on position
+		pos_x = event.position().x()
+		pos_y = event.position().y()
+		track_y = self.height() // 2
+
+		# Check if we're over a handle
+		lower_handle = QRect(
+			int(self.lower_pos - self.handle_width),
+			track_y - self.handle_height // 2 - 5,
+			2 * self.handle_width,
+			self.handle_height + 10,
+		)
+
+		upper_handle = QRect(
+			int(self.upper_pos - self.handle_width),
+			track_y - self.handle_height // 2 - 5,
+			2 * self.handle_width,
+			self.handle_height + 10,
+		)
+
+		middle_area = QRect(
+			int(self.lower_pos + self.handle_width // 2),
+			track_y - 15,
+			int(self.upper_pos - self.lower_pos - self.handle_width),
+			30,
+		)
+
+		if lower_handle.contains(int(pos_x), int(pos_y)) or upper_handle.contains(
+			int(pos_x), int(pos_y)
+		):
+			self.setCursor(Qt.CursorShape.SizeHorCursor)
+		elif middle_area.contains(int(pos_x), int(pos_y)):
+			self.setCursor(Qt.CursorShape.OpenHandCursor)
+		else:
+			self.setCursor(Qt.CursorShape.ArrowCursor)
 
 
 class SliceSelector(QWidget):

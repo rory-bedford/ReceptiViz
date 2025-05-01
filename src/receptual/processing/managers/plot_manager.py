@@ -1,6 +1,6 @@
 import numpy as np
 
-MAX_RANGE = 5000
+MAX_RANGE = 1000
 
 
 class PlotManager:
@@ -9,6 +9,7 @@ class PlotManager:
 	Attributes:
 		name (str): The name of the data type.
 		data (np.ndarray): The data to be plotted.
+		slice_data (np.ndarray): The slice of the data acted on by range selectors
 		ndim (int): The number of dimensions of the data.
 		shape (tuple): The shape of the data.
 		available_axes (list): List of available axes for selection.
