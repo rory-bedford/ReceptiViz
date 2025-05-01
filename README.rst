@@ -1,26 +1,42 @@
 Receptual
 =========
+.. image:: https://img.shields.io/pypi/v/receptual.svg
+   :target: https://pypi.org/project/receptual/
+   :alt: PyPI version
+
+.. image:: https://readthedocs.org/projects/receptual/badge/?version=latest
+   :target: https://receptual.readthedocs.io/
+   :alt: Read the Docs
+
+.. image:: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json
+   :target: https://github.com/astral-sh/ruff
+   :alt: Ruff
+
+.. image:: https://github.com/rory-bedford/Receptual/actions/workflows/ci.yml/badge.svg
+   :target: https://github.com/rory-bedford/Receptual/actions/workflows/ci.yml
+   :alt: CI
+
+.. image:: https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit
+   :target: https://github.com/pre-commit/pre-commit
+   :alt: pre-commit
+
+.. image:: https://codecov.io/gh/rory-bedford/Receptual/graph/badge.svg?token=60S5WLF5PE
+   :target: https://codecov.io/gh/rory-bedford/Receptual
+   :alt: codecov
+
+.. image:: https://img.shields.io/badge/License-MIT-yellow.svg
+   :target: LICENSE
+   :alt: License: MIT
+
+**Receptual** is a lightweight, interactive tool for computing and visualizing neuron receptive fields and linear decoders.
 
 .. image:: https://raw.githubusercontent.com/rory-bedford/Receptual/main/assets/receptive_field_white.png
    :alt: Receptual demo
    :width: 400px
    :align: center
 
-Badges
-------
-
-- `PyPI version <https://pypi.org/project/receptual/>`__
-- `Read the Docs <https://receptual.readthedocs.io/>`__
-- `Ruff <https://github.com/astral-sh/ruff>`__
-- `CI <https://github.com/rory-bedford/Receptual/actions/workflows/ci.yml>`__
-- `pre-commit <https://github.com/pre-commit/pre-commit>`__
-- `Codecov <https://codecov.io/gh/rory-bedford/Receptual>`__
-- `License: MIT <LICENSE>`__
-
 Overview
 --------
-
-**Receptual** is a lightweight, interactive tool for computing and visualizing neuron receptive fields and linear decoders.
 
 Linear encoding and decoding methods are essential tools for:
 
