@@ -79,6 +79,9 @@ class MainWindow(QMainWindow):
 		self.range_selector.slice_changed.connect(self.update_plot)
 		self.axis_selector.axis_selected.connect(self.update_plot)
 
+		# Connect axis selector to range selector to ensure coordination
+		self.axis_selector.axis_selected.connect(self.update_range_selector)
+
 	def connect_update_triggers(self):
 		"""Connect events that should trigger a status update."""
 		# Update status after menu operations
@@ -180,3 +183,8 @@ class MainWindow(QMainWindow):
 					f'Error updating plot: {str(e)}',
 					QMessageBox.StandardButton.Ok,
 				)
+
+	def update_range_selector(self):
+		"""Update the range selector when axes selection changes"""
+		if self.plot_manager:
+			self.range_selector.update_widgets()

@@ -1,5 +1,7 @@
 import numpy as np
 
+MAX_RANGE = 5000
+
 
 class PlotManager:
 	"""A class to manage data for the plotting widget.
@@ -95,7 +97,9 @@ class PlotManager:
 		assert len(axes) == 2, 'Exactly two axes must be selected.'
 		self.selected_axes = axes
 		self.slice_axes = [i for i in range(self.ndim) if i not in self.selected_axes]
-		self.ranges = {i: [0, self.data.shape[i] - 1] for i in self.selected_axes}
+		self.ranges = {
+			i: [0, min(self.data.shape[i] - 1, MAX_RANGE)] for i in self.selected_axes
+		}
 		self.slices = {i: 0 for i in self.slice_axes}
 		self.update_plot_data()
 

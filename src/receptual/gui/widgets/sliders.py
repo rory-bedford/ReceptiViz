@@ -42,10 +42,23 @@ class AxisSelector(QWidget):
 		self.axis_group.hide()
 
 		# Clear any previous UI elements
-		while self.axis_layout.count():
-			item = self.axis_layout.takeAt(0)
-			if item.widget():
-				item.widget().deleteLater()
+		self.clear_layout(self.axis_layout)
+
+	def clear_layout(self, layout):
+		"""Properly clear all widgets from a layout"""
+		if layout is None:
+			return
+
+		while layout.count():
+			item = layout.takeAt(0)
+			widget = item.widget()
+			if widget is not None:
+				widget.deleteLater()
+			else:
+				# If the item is a layout, clear it too
+				child_layout = item.layout()
+				if child_layout is not None:
+					self.clear_layout(child_layout)
 
 	def init_ui(self):
 		"""Initialize the UI components with actual controls."""
@@ -54,12 +67,9 @@ class AxisSelector(QWidget):
 		self.axis_group.setTitle('Select Axes for Plotting')
 
 		# Clear any previous UI elements
-		while self.axis_layout.count():
-			item = self.axis_layout.takeAt(0)
-			if item.widget():
-				item.widget().deleteLater()
+		self.clear_layout(self.axis_layout)
 
-			# Create a single horizontal layout for everything
+		# Create a single horizontal layout for everything
 		main_controls_layout = QHBoxLayout()
 
 		# Create left-side layout for axis selection
@@ -686,6 +696,16 @@ class RangeSelector(QWidget):
 		if hasattr(self.plot_manager, 'slice_axes') and self.plot_manager.slice_axes:
 			for axis in self.plot_manager.slice_axes:
 				row = self.create_slice_selector(axis, row)
+
+		# If no widgets were added, show a message
+		if row == 0:
+			empty_label = QLabel('No axes available for adjustment')
+			empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+			empty_label.setStyleSheet('color: #999; font-style: italic;')
+			self.range_layout.addWidget(empty_label, 0, 0, 1, 2)
+
+		# Make sure the change is visible
+		self.range_group.update()
 
 	def clear_widgets(self):
 		"""Clear all widgets from the layout"""
