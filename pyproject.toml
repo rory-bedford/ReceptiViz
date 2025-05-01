@@ -1,8 +1,8 @@
 [project]
 name = "receptual"
-version = "v0.1.2"
+version = "v0.1.3"
 description = "A simple tool for computing and visualising neuron receptive fields."
-readme = "README.md"
+readme = { file = "README.rst", content-type = "text/x-rst" }
 license = { text = "MIT" }
 authors = [
     { name = "rory-bedford", email = "rorybedford@protonmail.com" }
