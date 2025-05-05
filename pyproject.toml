@@ -1,6 +1,6 @@
 [project]
 name = "receptual"
-version = "v0.1.3"
+version = "v0.1.4"
 description = "A simple tool for computing and visualising neuron receptive fields."
 readme = { file = "README.rst", content-type = "text/x-rst" }
 license = { text = "MIT" }
