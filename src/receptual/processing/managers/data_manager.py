@@ -200,7 +200,6 @@ class ReceptiveField:
 		if kernel_size <= 0:
 			raise ValueError('Kernel size must be positive')
 		self.kernel_size = int(kernel_size)
-		self.compute()
 
 	def compute(self):
 		"""Compute receptive field using the activity and stimulus data.

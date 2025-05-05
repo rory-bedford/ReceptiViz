@@ -4,3 +4,4 @@
 * Improve unit test coverage and test receptive field estimation followed by encoding (with appropriate error ranges)
 * Implement fft version
 * Implement decoder
+* Multithreading in GUI for compute

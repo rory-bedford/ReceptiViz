@@ -1,4 +1,13 @@
-from PyQt6.QtWidgets import QMenu, QMessageBox
+from PyQt6.QtWidgets import (
+	QMenu,
+	QMessageBox,
+	QDialog,
+	QVBoxLayout,
+	QLabel,
+	QSpinBox,
+	QPushButton,
+	QHBoxLayout,
+)
 
 
 class ComputeMenu(QMenu):
@@ -25,7 +34,7 @@ class ComputeMenu(QMenu):
 			lambda: self.compute_data(self.data_manager.stimulus)
 		)
 		self.receptive_field_action.triggered.connect(
-			lambda: self.compute_data(self.data_manager.receptive_field)
+			self.handle_receptive_field_compute
 		)
 
 		# Initial update of enabled/disabled state
@@ -48,6 +57,60 @@ class ComputeMenu(QMenu):
 			hasattr(self.data_manager.receptive_field, 'computable')
 			and self.data_manager.receptive_field.computable
 		)
+
+	def handle_receptive_field_compute(self):
+		"""Handle receptive field computation with kernel size dialog."""
+		# Create kernel size input dialog
+		dialog = QDialog(self.parent())
+		dialog.setWindowTitle('Set Kernel Size')
+
+		# Create layout
+		layout = QVBoxLayout()
+
+		# Add explanation label
+		layout.addWidget(
+			QLabel('Set the kernel size for the receptive field computation:')
+		)
+
+		# Add spin box for kernel size input
+		kernel_spin = QSpinBox()
+		kernel_spin.setMinimum(1)
+		kernel_spin.setMaximum(100)  # Set a reasonable maximum
+		kernel_spin.setValue(self.data_manager.receptive_field.kernel_size)
+		kernel_spin.setSuffix(' timepoints')
+		layout.addWidget(kernel_spin)
+
+		# Add buttons
+		button_layout = QHBoxLayout()
+		cancel_button = QPushButton('Cancel')
+		compute_button = QPushButton('Compute')
+		compute_button.setDefault(True)
+
+		button_layout.addWidget(cancel_button)
+		button_layout.addWidget(compute_button)
+		layout.addLayout(button_layout)
+
+		dialog.setLayout(layout)
+
+		# Connect buttons
+		cancel_button.clicked.connect(dialog.reject)
+		compute_button.clicked.connect(dialog.accept)
+
+		# Show dialog and handle result
+		if dialog.exec() == QDialog.DialogCode.Accepted:
+			kernel_size = kernel_spin.value()
+			try:
+				# Update kernel size in data manager
+				self.data_manager.receptive_field.update_kernel_size(kernel_size)
+				# Compute receptive field
+				self.compute_data(self.data_manager.receptive_field)
+			except ValueError as e:
+				QMessageBox.critical(
+					self.parent(),
+					'Error',
+					f'Invalid kernel size: {str(e)}',
+					QMessageBox.StandardButton.Ok,
+				)
 
 	def compute_data(self, data_component):
 		"""Generic method to compute a data component.

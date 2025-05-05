@@ -1,5 +1,9 @@
 # Changelog
 
+## [Unreleased]
+### Added
+- Kernel size option in GUI
+
 ## [0.1.3] - 2025-05-01
 ### Added
 - reST metadata for PyPI
