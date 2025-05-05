@@ -5,3 +5,4 @@
 * Implement fft version
 * Implement decoder
 * Multithreading in GUI for compute
+* Make window icon and include in app
