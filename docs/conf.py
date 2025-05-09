@@ -31,8 +31,6 @@ html_static_path = ['_static']
 html_theme_options = {
 	'description': 'A simple tool for computing and visualising neuron receptive fields',
 	'fixed_sidebar': True,
-	'logo': 'logo_white.png',
-	'logo_name': True,
 	'github_button': True,
 	'github_repo': 'Receptual',
 	'github_user': 'rory-bedford',

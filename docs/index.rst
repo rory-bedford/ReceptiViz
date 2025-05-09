@@ -1,5 +1,5 @@
-Receptual Documentation
-=======================
+Receptual
+=========
 
 **Receptual** is a lightweight, interactive tool for computing and visualizing neuron receptive fields and linear decoders.
 
