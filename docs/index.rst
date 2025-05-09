@@ -3,7 +3,7 @@ Receptual Documentation
 
 **Receptual** is a lightweight, interactive tool for computing and visualizing neuron receptive fields and linear decoders.
 
-.. image:: images/receptive_field_white.gif
+.. image:: _static/logo_white_rotating.gif
    :alt: Receptive Field GIF
    :width: 400px
    :align: center

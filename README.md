@@ -11,7 +11,7 @@
 **Receptual** is a lightweight, interactive tool for computing and visualizing neuron receptive fields and linear decoders.
 
 <p align="center">
-    <img src="https://raw.githubusercontent.com/rory-bedford/Receptual/main/assets/receptive_field_black.gif" width="400">
+    <img src="https://raw.githubusercontent.com/rory-bedford/Receptual/main/assets/logo_black_rotating.gif" width="400">
 </p>
 
 ## Overview
